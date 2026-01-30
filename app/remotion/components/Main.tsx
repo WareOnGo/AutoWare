@@ -1,67 +1,113 @@
-import { z } from "zod";
-import {
-  AbsoluteFill,
-  Sequence,
-  spring,
-  useCurrentFrame,
-  useVideoConfig,
-} from "remotion";
-import { ReactRouterLogo } from "./ReactRouterLogo";
-import { loadFont, fontFamily } from "@remotion/google-fonts/Inter";
-import React, { useMemo } from "react";
-import { Rings } from "./Rings";
-import { TextFade } from "./TextFade";
-import { CompositionProps } from "../schemata";
+import { AbsoluteFill, Sequence } from "remotion";
+import { Intro } from "./videoSections/Intro";
+import { Outro } from "./videoSections/Outro";
 
-const weight = "600" as const;
-
-loadFont("normal", {
-  weights: ["400", weight],
-});
-
-const container: React.CSSProperties = {
-  backgroundColor: "white",
-};
-
-const logo: React.CSSProperties = {
-  justifyContent: "center",
-  alignItems: "center",
-};
-
-export const Main = ({ title }: z.infer<typeof CompositionProps>) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-
-  const transitionStart = 2 * fps;
-  const transitionDuration = 1 * fps;
-
-  const logoOut = spring({
-    fps,
-    frame,
-    config: {
-      damping: 200,
-    },
-    durationInFrames: transitionDuration,
-    delay: transitionStart,
-  });
-
-  const titleStyle: React.CSSProperties = useMemo(() => {
-    return { fontFamily, fontSize: 70, fontWeight: weight };
-  }, []);
+export const Main = () => {
+  const fps = 30;
 
   return (
-    <AbsoluteFill style={container}>
-      <Sequence durationInFrames={transitionStart + transitionDuration}>
-        <Rings outProgress={logoOut}></Rings>
-        <AbsoluteFill style={logo}>
-          <ReactRouterLogo outProgress={logoOut}></ReactRouterLogo>
+    <>
+      {/* First Video */}
+      <Sequence from={0} durationInFrames={5 * fps}>
+        <Intro />
+      </Sequence>
+
+      {/* Second Video */}
+
+      <Sequence from={5 * fps} durationInFrames={5 * fps}>
+        <AbsoluteFill
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: 40,
+            backgroundColor: "white",
+          }}
+        >
+          5-10 sec: Map zoom in: has to be automated using satellite map data{" "}
+          <br />
+          cinematic drone sweep of the warehouse compound: Optional shot to be
+          uploaded (Manual video 1a)
         </AbsoluteFill>
       </Sequence>
-      <Sequence from={transitionStart + transitionDuration / 2}>
-        <TextFade>
-          <h1 style={titleStyle}>{title}</h1>
-        </TextFade>
+
+      {/* Third Video */}
+
+      <Sequence from={10 * fps} durationInFrames={10 * fps}>
+        <AbsoluteFill
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: 40,
+            backgroundColor: "white",
+          }}
+        >
+          10-20 sec: Map highlight of key nearby locations: mix of automated
+          with human nudge <br />
+          Human highlights nearby key roads, hospital, railway/airport then
+          highlighted using map data into a crisp animation (showing distance){" "}
+          <br />
+          Another optional manual video of the approach road entering to the
+          warehouse (Manual video 1b)
+        </AbsoluteFill>
       </Sequence>
-    </AbsoluteFill>
+
+      {/* Fourth Video */}
+
+      <Sequence from={20 * fps} durationInFrames={15 * fps}>
+        <AbsoluteFill
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: 40,
+            backgroundColor: "white",
+          }}
+        >
+          20-35 sec: Internal storage related photos and videos - Manual video
+          2: Snippet showing entire length of the warehouse alongwith floor and
+          ceiling. This is to be used to showcase annotations of features like
+          clear height, ventilation, insulation, flooring etc and any animations
+          of vertical racking. - Manual video 3: Internal access to docks and
+          the arrangement of these docks inside. - manual video 4: Utility rooms
+          and features ke videos (bathrooms, fire pump room, security room,
+          canteen etc). Needs checkboxes for each feature uploaded.
+        </AbsoluteFill>
+      </Sequence>
+
+      {/* Fourth Video */}
+
+      <Sequence from={35 * fps} durationInFrames={10 * fps}>
+        <AbsoluteFill
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: 40,
+            backgroundColor: "white",
+          }}
+        >
+          35-45 sec: External docking and parking videos - Manual video 5: Dock
+          access and docking space pan video
+        </AbsoluteFill>
+      </Sequence>
+
+      {/* Fourth Video */}
+
+      <Sequence from={45 * fps} durationInFrames={10 * fps}>
+        <AbsoluteFill
+          style={{
+            justifyContent: "center",
+            alignItems: "center",
+            fontSize: 40,
+            backgroundColor: "white",
+          }}
+        >
+          45-55 sec: Compliances: - Fire safety measures videos (hydrants,
+          sprinklers, alarm system, pump room etc)
+        </AbsoluteFill>
+      </Sequence>
+
+      <Sequence from={55 * fps} durationInFrames={5 * fps}>
+        <Outro />
+      </Sequence>
+    </>
   );
 };
