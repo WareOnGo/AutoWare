@@ -1,10 +1,8 @@
-import { Interface } from "readline";
 import { IntroModel } from "~/remotion/models/intro";
 import {
   AbsoluteFill,
   staticFile,
   useCurrentFrame,
-  useVideoConfig,
   interpolate
 } from "remotion";
 

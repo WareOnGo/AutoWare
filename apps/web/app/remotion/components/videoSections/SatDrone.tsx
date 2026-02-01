@@ -1,6 +1,7 @@
 import { AbsoluteFill, useCurrentFrame } from "remotion";
+import { satdroneModel } from "~/remotion/models/satdrone";
 
-export const CompliancesVid = () => {
+export const SatDrone : React.FC<satdroneModel> = () => {
   const frame = useCurrentFrame();
 
   return (
@@ -14,8 +15,10 @@ export const CompliancesVid = () => {
           textAlign: "center",
         }}
       >
-          45-55 sec: Compliances: - Fire safety measures videos (hydrants,
-          sprinklers, alarm system, pump room etc)
+          5-10 sec: Map zoom in: has to be automated using satellite map data
+          <br />
+          cinematic drone sweep of the warehouse compound: Optional shot to be
+          uploaded (Manual video 1a)
       </AbsoluteFill>
     </>
   );

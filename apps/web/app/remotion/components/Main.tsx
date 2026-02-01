@@ -20,7 +20,7 @@ export const Main = () => {
       {/* Second Video SatDrone */}
 
       <Sequence from={5 * fps} durationInFrames={5 * fps}>
-          <SatDrone/>
+          <SatDrone dronevideourl="Test" satimageurl="Test" latitude={12.9716} longitude={77.5946} />
       </Sequence>
 
       {/* Third Video Location*/}
@@ -44,7 +44,7 @@ export const Main = () => {
       {/* Sixth Video Compliances */}
 
       <Sequence from={45 * fps} durationInFrames={10 * fps}>
-        <CompliancesVid/>
+        <CompliancesVid complianceList={["Fire safety measures videos (hydrants, sprinklers, alarm system, pump room etc)"]} />
       </Sequence>
 
       {/*  Seventh Video (Outro) */}
