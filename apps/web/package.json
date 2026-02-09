@@ -6,6 +6,7 @@
     "*.css"
   ],
   "dependencies": {
+    "@repo/shared": "*",
     "clsx": "2.1.1",
     "@react-router/node": "7.12.0",
     "@react-router/serve": "7.12.0",

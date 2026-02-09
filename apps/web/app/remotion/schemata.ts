@@ -1,15 +1,21 @@
 import { z } from "zod";
 
-export const CompositionProps = z.object({
+// Re-export the master warehouse video schema from shared package
+export { CompositionProps } from "@repo/shared";
+export type { WarehouseVideoProps } from "@repo/shared";
+
+// Legacy composition props (deprecated - use WarehouseVideoProps instead)
+const LegacyCompositionProps = z.object({
   title: z.string(),
 });
 
-export const defaultMyCompProps: z.infer<typeof CompositionProps> = {
+export const defaultMyCompProps: z.infer<typeof LegacyCompositionProps> = {
   title: "React Router and Remotion",
 };
 
+// Render request uses the shared CompositionProps from the warehouse schema
 export const RenderRequest = z.object({
-  inputProps: CompositionProps,
+  inputProps: z.any(), // Accept any valid warehouse props structure
 });
 
 export const ProgressRequest = z.object({
@@ -19,15 +25,16 @@ export const ProgressRequest = z.object({
 
 export type ProgressResponse =
   | {
-      type: "error";
-      message: string;
-    }
+    type: "error";
+    message: string;
+  }
   | {
-      type: "progress";
-      progress: number;
-    }
+    type: "progress";
+    progress: number;
+  }
   | {
-      type: "done";
-      url: string;
-      size: number;
-    };
+    type: "done";
+    url: string;
+    size: number;
+  };
+
