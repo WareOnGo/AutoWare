@@ -31,7 +31,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
       <Sequence from={0} durationInFrames={5 * fps}>
         {/* OLD: <Intro clientname="Client B" region="ABXD" state="Karnataka"  /> */}
         {/* TODO: Update Intro to use props.meta.clientName and props.meta.projectLocationName */}
-        <Intro clientname={props.meta.clientName} region={props.meta.projectLocationName} state="Karnataka" />
+        <Intro clientname={props.meta.clientName} region={props.meta.projectLocationName} />
       </Sequence>
 
       {/* Second Video SatDrone */}

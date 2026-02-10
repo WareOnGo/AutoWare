@@ -11,16 +11,23 @@ const ButtonForward: React.ForwardRefRenderFunction<
     children: React.ReactNode;
     loading?: boolean;
     secondary?: boolean;
+    variant?: "primary" | "secondary";
+    type?: "button" | "submit" | "reset";
+    className?: string;
   }
-> = ({ onClick, disabled, children, loading, secondary }, ref) => {
+> = ({ onClick, disabled, children, loading, secondary, variant, type = "button", className }, ref) => {
+  const isSecondary = secondary || variant === "secondary";
+
   return (
     <button
       ref={ref}
+      type={type}
       className={cn(
-        "border-foreground border rounded-geist bg-foreground text-background px-geist-half font-geist h-10 font-medium transition-all duration-150 ease-in-out inline-flex items-center appearance-none text-sm hover:bg-background hover:text-foreground hover:border-focused-border-color disabled:bg-button-disabled-color disabled:text-disabled-text-color disabled:border-unfocused-border-color disabled:cursor-not-allowed",
-        secondary
+        "border-foreground border rounded-geist bg-foreground text-background px-geist-half font-geist h-10 font-medium transition-all duration-150 ease-in-out inline-flex items-center justify-center appearance-none text-sm hover:bg-background hover:text-foreground hover:border-focused-border-color disabled:bg-button-disabled-color disabled:text-disabled-text-color disabled:border-unfocused-border-color disabled:cursor-not-allowed",
+        isSecondary
           ? "bg-background text-foreground border-unfocused-border-color"
           : undefined,
+        className
       )}
       onClick={onClick}
       disabled={disabled}

@@ -9,10 +9,10 @@ import {
 
 
 export const Intro: React.FC<IntroModel> = ({ clientname, region, state }) => {
-    const frame = useCurrentFrame();
-    
-    const opacityClient = interpolate(frame, [0, 30], [0, 1], {extrapolateRight: 'clamp' });
-    const opacityRegion = interpolate(frame, [30, 60], [0, 1], {extrapolateRight: 'clamp' });
+  const frame = useCurrentFrame();
+
+  const opacityClient = interpolate(frame, [0, 30], [0, 1], { extrapolateRight: 'clamp' });
+  const opacityRegion = interpolate(frame, [30, 60], [0, 1], { extrapolateRight: 'clamp' });
 
   return (
     <>
@@ -32,7 +32,7 @@ export const Intro: React.FC<IntroModel> = ({ clientname, region, state }) => {
         />
         <h1 style={{ fontSize: 50, fontWeight: 600, opacity: opacityClient }}>{clientname}</h1>
         <h2 style={{ opacity: opacityRegion }}>
-          {region}, {state}
+          {region}{state ? `, ${state}` : ''}
         </h2>
       </AbsoluteFill>
     </>

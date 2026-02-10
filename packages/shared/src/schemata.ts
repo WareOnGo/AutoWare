@@ -4,8 +4,23 @@ import { z } from "zod";
 // Shared Types
 // ---------------------------------------------------------------------------
 
-// Reusable schema for S3/R2 URLs
-const MediaUrl = z.string().url({ message: "Must be a valid S3/R2 URL" });
+// Reusable schema for S3/R2 URLs and local blob URLs
+const MediaUrl = z.string().refine(
+  (val) => {
+    // Accept empty strings (for optional/not-yet-uploaded fields)
+    if (!val || val.trim() === '') return true;
+    // Accept blob URLs (local file uploads)
+    if (val.startsWith('blob:')) return true;
+    // Accept regular URLs
+    try {
+      new URL(val);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "Must be a valid URL or local file" }
+).or(z.literal(""));
 
 // Lat/Long for automated map zoom
 const GeoLocation = z.object({
@@ -16,7 +31,7 @@ const GeoLocation = z.object({
 // ✅ NEW: Reusable Audio Metadata Schema
 // This ensures every section has the audio file + the data needed to sync it
 const AudioMetaSchema = z.object({
-  audioUrl: MediaUrl,         // The MP3 file from ElevenLabs/OpenAI
+  audioUrl: MediaUrl.optional(),  // Optional - generated via TTS from transcript
   durationInSeconds: z.number().positive(), // Critical for calculating frame counts (duration * 30fps)
   transcript: z.string(),     // The text script (used for subtitles & the editor UI)
 });
@@ -25,11 +40,11 @@ const AudioMetaSchema = z.object({
 // Section 1: Satellite & Drone (0-5 sec... dynamic based on audio)
 // ---------------------------------------------------------------------------
 export const SatDroneSchema = z.object({
-  location: GeoLocation, 
+  location: GeoLocation,
   droneVideoUrl: MediaUrl.optional(),
-  
+
   // ✅ Audio is now a core part of the section
-  audio: AudioMetaSchema, 
+  audio: AudioMetaSchema,
 });
 
 // ---------------------------------------------------------------------------
@@ -45,7 +60,7 @@ export const LocationHighlightSchema = z.object({
   ).max(4),
 
   approachRoadVideoUrl: MediaUrl.optional(),
-  
+
   // ✅ Audio for this section
   audio: AudioMetaSchema,
 });
