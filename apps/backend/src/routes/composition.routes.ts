@@ -6,6 +6,7 @@ import {
   updateCompositionHandler,
   patchCompositionHandler,
   deleteCompositionHandler,
+  duplicateCompositionHandler,
   updateMediaUrlsHandler,
 } from '../controllers/composition.controller';
 
@@ -17,6 +18,7 @@ router.get('/:id', getCompositionByIdHandler);
 router.put('/:id', updateCompositionHandler);
 router.patch('/:id', patchCompositionHandler);
 router.post('/:id/media-urls', updateMediaUrlsHandler);
+router.post('/:id/duplicate', duplicateCompositionHandler);
 router.delete('/:id', deleteCompositionHandler);
 
 export default router;

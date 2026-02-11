@@ -113,6 +113,30 @@ export const deleteComposition = async (id: string) => {
   });
 };
 
+export const duplicateComposition = async (id: string) => {
+  const existing = await prisma.videoComposition.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    return null;
+  }
+
+  // Create a copy with a new ID and updated timestamps
+  // Append " (Copy)" to the client name to indicate it's a duplicate
+  const compositionData = { ...existing.composition_components };
+  
+  if (compositionData.intro?.clientName) {
+    compositionData.intro.clientName = `${compositionData.intro.clientName} (Copy)`;
+  }
+
+  return await prisma.videoComposition.create({
+    data: {
+      composition_components: compositionData,
+    },
+  });
+};
+
 // Deep merge utility for PATCH operations
 function deepMerge(target: any, source: any): any {
   const output = { ...target };

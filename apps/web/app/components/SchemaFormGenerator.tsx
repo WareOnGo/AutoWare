@@ -30,6 +30,7 @@ interface SchemaFormGeneratorProps<T extends FieldValues> {
     schema: z.ZodType<T>;
     form: UseFormReturn<T>;
     basePath?: string;
+    onFileSelect?: (fieldPath: string, file: File | null) => void;
 }
 
 // Helper to convert camelCase to Title Case
@@ -80,7 +81,8 @@ function renderField<T extends FieldValues>(
     key: string,
     zodType: any,
     form: UseFormReturn<T>,
-    basePath?: string
+    basePath?: string,
+    onFileSelect?: (fieldPath: string, file: File | null) => void
 ): React.ReactNode {
     const fieldPath = basePath ? `${basePath}.${key}` : key;
     const label = toTitleCase(key);
@@ -117,7 +119,7 @@ function renderField<T extends FieldValues>(
                 <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{label}</h3>
                 <div className="space-y-4">
                     {Object.entries(shape).map(([nestedKey, nestedType]) =>
-                        renderField(nestedKey, nestedType, form, fieldPath)
+                        renderField(nestedKey, nestedType, form, fieldPath, onFileSelect)
                     )}
                 </div>
             </div>
@@ -154,7 +156,7 @@ function renderField<T extends FieldValues>(
                                         </button>
                                     </div>
                                     {Object.entries(shape).map(([nestedKey, nestedType]) =>
-                                        renderField(nestedKey, nestedType, form, `${fieldPath}.${index}`)
+                                        renderField(nestedKey, nestedType, form, `${fieldPath}.${index}`, onFileSelect)
                                     )}
                                 </div>
                             );
@@ -281,6 +283,7 @@ function renderField<T extends FieldValues>(
                                 <VideoUpload
                                     value={field.value}
                                     onChange={field.onChange}
+                                    onFileSelect={(file) => onFileSelect?.(fieldPath, file)}
                                     label={`Upload ${label}`}
                                 />
                             </FormControl>
@@ -316,6 +319,7 @@ export function SchemaFormGenerator<T extends FieldValues>({
     schema,
     form,
     basePath,
+    onFileSelect,
 }: SchemaFormGeneratorProps<T>) {
     // Get the schema shape
     const schemaType = schema as any;
@@ -344,7 +348,7 @@ export function SchemaFormGenerator<T extends FieldValues>({
                                 <div className="space-y-6">
                                     {/* Render children of the section manually to skip the wrapper div */}
                                     {Object.entries((zodType as any)._def.shape()).map(([childKey, childType]) =>
-                                        renderField(childKey, childType, form, key)
+                                        renderField(childKey, childType, form, key, onFileSelect)
                                     )}
                                 </div>
                             </AccordionContent>
@@ -354,7 +358,7 @@ export function SchemaFormGenerator<T extends FieldValues>({
 
                 return (
                     <div key={key} className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-                        {renderField(key, zodType, form, basePath)}
+                        {renderField(key, zodType, form, basePath, onFileSelect)}
                     </div>
                 );
             })}

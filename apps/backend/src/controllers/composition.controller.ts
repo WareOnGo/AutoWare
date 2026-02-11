@@ -6,6 +6,7 @@ import {
   updateComposition,
   patchComposition,
   deleteComposition,
+  duplicateComposition,
   updateMediaUrls,
 } from '../services/composition.service';
 import { CompositionProps } from '@repo/shared';
@@ -120,6 +121,26 @@ export const deleteCompositionHandler = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Composition not found' });
     }
     console.error('Error deleting composition:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const duplicateCompositionHandler = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const duplicatedComposition = await duplicateComposition(id);
+
+    if (!duplicatedComposition) {
+      return res.status(404).json({ error: 'Composition not found' });
+    }
+
+    res.status(201).json(duplicatedComposition);
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Composition not found' });
+    }
+    console.error('Error duplicating composition:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 };

@@ -20,16 +20,20 @@
   --subtitle: #666;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --unfocused-border-color: #333;
-    --focused-border-color: #888;
-    --foreground: #fff;
-    --button-disabled-color: #111;
-    --geist-error: red;
-    --subtitle: #8d8d8d;
-  }
+/* Force light theme - override system preference */
+html.light {
+  color-scheme: light;
+}
+
+html.light :root {
+  --background: #fff;
+  --foreground: #000;
+  --unfocused-border-color: #eaeaea;
+  --focused-border-color: #666;
+  --button-disabled-color: #fafafa;
+  --disabled-text-color: #999;
+  --geist-error: #e00;
+  --subtitle: #666;
 }
 
 @theme {
@@ -59,4 +63,23 @@
       opacity: 0.15;
     }
   }
+}
+
+@keyframes slide-in-from-right {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.slide-in-from-right-full {
+  animation: slide-in-from-right 0.3s ease-out;
 }

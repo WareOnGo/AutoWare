@@ -5,6 +5,7 @@ import { cn } from "~/lib/utils";
 interface VideoUploadProps {
     value?: string;
     onChange?: (url: string) => void;
+    onFileSelect?: (file: File | null) => void;
     className?: string;
     label?: string;
 }
@@ -12,6 +13,7 @@ interface VideoUploadProps {
 export const VideoUpload: React.FC<VideoUploadProps> = ({
     value,
     onChange,
+    onFileSelect,
     className,
     label = "Upload Video",
 }) => {
@@ -39,6 +41,9 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
 
         // Call onChange with the object URL
         onChange?.(objectUrl);
+        
+        // Call onFileSelect with the actual file for pending uploads
+        onFileSelect?.(file);
     };
 
     const handleRemove = () => {
@@ -48,6 +53,7 @@ export const VideoUpload: React.FC<VideoUploadProps> = ({
         setPreview(null);
         setFileName("");
         onChange?.("");
+        onFileSelect?.(null);
         if (fileInputRef.current) {
             fileInputRef.current.value = "";
         }

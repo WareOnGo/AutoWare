@@ -6,6 +6,13 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { ToastProvider } from "~/lib/toast-context";
+import { ErrorBoundary } from "~/components/ErrorBoundary";
+import stylesheet from "~/app.css?url";
+
+export const links = () => [
+  { rel: "stylesheet", href: stylesheet },
+];
 
 export const meta: MetaFunction = () => {
   return [
@@ -17,15 +24,20 @@ export const meta: MetaFunction = () => {
     { property: "og:title", content: "Remotion + React Router" },
   ];
 };
+
 export default function App() {
   return (
-    <html lang="en">
+    <html lang="en" className="light">
       <head>
         <Meta />
         <Links />
       </head>
-      <body style={{ margin: 0, padding: 0, overflow: 'hidden', height: '100vh' }}>
-        <Outlet />
+      <body>
+        <ErrorBoundary>
+          <ToastProvider>
+            <Outlet />
+          </ToastProvider>
+        </ErrorBoundary>
         <ScrollRestoration />
         <Scripts />
       </body>
