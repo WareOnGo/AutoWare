@@ -63,7 +63,9 @@ export const LocationHighlightSchema = z.object({
     })
   ).max(4),
 
+  satelliteImageUrl: MediaUrl.optional(), // Satellite image from previous section
   approachRoadVideoUrl: MediaUrl.optional(),
+  approachRoadVideoDurationInSeconds: z.number().positive().optional(), // Duration of approach road video
 
   // ✅ Audio for this section
   audio: AudioMetaSchema,

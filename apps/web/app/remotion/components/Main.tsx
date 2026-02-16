@@ -62,10 +62,15 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
     props.satDroneSection.audio.durationInSeconds || 0,
     props.satDroneSection.sectionDurationInSeconds
   );
+  
+  // For location section, add approach video duration to the minimum required duration
+  const locationMinimumDuration = (props.locationSection.audio.durationInSeconds || 0) + 
+    (props.locationSection.approachRoadVideoDurationInSeconds || 0);
   const locationCalc = calculateSectionDuration(
-    props.locationSection.audio.durationInSeconds || 0,
+    locationMinimumDuration,
     props.locationSection.sectionDurationInSeconds
   );
+  
   const internalCalc = calculateSectionDuration(
     props.internalSection.audio.durationInSeconds || 0,
     props.internalSection.sectionDurationInSeconds
@@ -120,7 +125,8 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
       {/* Third Video Location*/}
       <Sequence from={locationStart} durationInFrames={locationDuration}>
         <LocationVid 
-          {...props.locationSection} 
+          {...props.locationSection}
+          satelliteImageUrl={props.satDroneSection.satelliteImageUrl}
           startPaddingInSeconds={locationCalc.startPadding}
         />
       </Sequence>

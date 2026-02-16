@@ -1,4 +1,4 @@
-import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Audio } from "remotion";
+import { AbsoluteFill, useCurrentFrame, useVideoConfig, interpolate, Audio, Video } from "remotion";
 import { satdroneModel } from "~/remotion/models/satdrone";
 
 export const SatDrone: React.FC<satdroneModel> = ({ 
@@ -15,10 +15,39 @@ export const SatDrone: React.FC<satdroneModel> = ({
   // Use provided satellite image URL if available, otherwise fallback to Google Maps Static API
   const satelliteImageUrl = satimageurl || `https://maps.googleapis.com/maps/api/staticmap?center=${latitude},${longitude}&zoom=17&size=1920x1080&maptype=satellite&key=YOUR_API_KEY`;
 
+  // If drone video exists AND is not empty, show it for 3 seconds, then transition to satellite
+  const hasDroneVideo = dronevideourl && dronevideourl.trim().length > 0 && dronevideourl !== "Test";
+  const droneVideoDuration = hasDroneVideo ? 3 * fps : 0;
+  const transitionDuration = 0.5 * fps; // 0.5 second transition
+
+  // Drone video opacity: full for first 3 seconds, then fade out
+  const droneOpacity = hasDroneVideo ? interpolate(
+    frame,
+    [0, droneVideoDuration - transitionDuration, droneVideoDuration],
+    [1, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  ) : 0;
+
+  // Satellite image opacity: fade in after drone video, or always visible if no drone video
+  const satelliteOpacity = hasDroneVideo ? interpolate(
+    frame,
+    [droneVideoDuration - transitionDuration, droneVideoDuration],
+    [0, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  ) : 1; // Always visible if no drone video
+
   // Interpolate zoom from 2x to 1x (zoom out effect) over the duration of the section
+  // Start zoom animation from the beginning if no drone video, otherwise after drone video ends
+  const zoomStartFrame = hasDroneVideo ? droneVideoDuration : 0;
   const scale = interpolate(
     frame,
-    [0, durationInFrames],
+    [zoomStartFrame, durationInFrames],
     [2, 1],
     {
       extrapolateLeft: "clamp",
@@ -34,12 +63,32 @@ export const SatDrone: React.FC<satdroneModel> = ({
           overflow: "hidden",
         }}
       >
-        {/* Satellite Image with Zoom Animation */}
+        {/* Drone Video Layer (if provided) - shows first */}
+        {hasDroneVideo && dronevideourl && (
+          <AbsoluteFill
+            style={{
+              opacity: droneOpacity,
+            }}
+          >
+            <Video
+              src={dronevideourl}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+              startFrom={0}
+            />
+          </AbsoluteFill>
+        )}
+
+        {/* Satellite Image with Zoom Animation - shows after drone video */}
         <AbsoluteFill
           style={{
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
+            opacity: satelliteOpacity,
           }}
         >
           <img
@@ -54,25 +103,6 @@ export const SatDrone: React.FC<satdroneModel> = ({
             }}
           />
         </AbsoluteFill>
-
-        {/* Optional: Drone video overlay if provided */}
-        {dronevideourl && (
-          <AbsoluteFill
-            style={{
-              opacity: interpolate(
-                frame,
-                [durationInFrames * 0.7, durationInFrames],
-                [0, 1],
-                {
-                  extrapolateLeft: "clamp",
-                  extrapolateRight: "clamp",
-                }
-              ),
-            }}
-          >
-            {/* Drone video would go here */}
-          </AbsoluteFill>
-        )}
 
         {/* Audio Layer */}
         {audio?.audioUrl && (
