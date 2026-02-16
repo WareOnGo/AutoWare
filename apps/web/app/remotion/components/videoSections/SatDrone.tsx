@@ -88,30 +88,22 @@ export const SatDrone: React.FC<satdroneModel> = ({
               justifyContent: "flex-end",
               alignItems: "center",
               paddingBottom: 50,
-              textShadow: "0px 2px 4px rgba(0,0,0,0.8)",
             }}
           >
-            <div
+            <p
               style={{
-                backgroundColor: "rgba(0, 0, 0, 0.6)",
-                padding: "10px 20px",
-                borderRadius: "10px",
+                color: "white",
+                fontSize: 32,
+                fontFamily: "Inter, sans-serif",
+                textAlign: "center",
+                fontWeight: "bold",
+                margin: 0,
+                textShadow: "2px 2px 4px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.9), 1px -1px 2px rgba(0,0,0,0.9), -1px 1px 2px rgba(0,0,0,0.9)",
                 maxWidth: "80%",
               }}
             >
-              <p
-                style={{
-                  color: "white",
-                  fontSize: 32,
-                  fontFamily: "Inter, sans-serif",
-                  textAlign: "center",
-                  fontWeight: "bold",
-                  margin: 0,
-                }}
-              >
-                {audio.transcript}
-              </p>
-            </div>
+              {audio.transcript}
+            </p>
           </AbsoluteFill>
         )}
       </AbsoluteFill>

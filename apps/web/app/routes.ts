@@ -5,5 +5,5 @@ export default [
   route("editor/:id", "routes/editor.$id.tsx"),
   route("render", "render.tsx"),
   route("progress/:id", "progress.tsx"),
-  route("worker-*", "routes/worker.$.ts"), // Catch Remotion worker files
+  route("worker-*/*", "routes/worker.$.ts"), // Catch Remotion worker files
 ] satisfies RouteConfig;

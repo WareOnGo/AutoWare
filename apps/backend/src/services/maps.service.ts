@@ -86,37 +86,48 @@ export const extractCoordinatesFromUrl = async (url: string): Promise<Coordinate
     };
   }
 
-  // Pattern 2: !3d!4d format (ACTUAL PIN LOCATION - most accurate for place URLs)
-  // This is buried in the data= parameter and represents the actual place coordinates
-  const pattern2 = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/;
+  // Pattern 2: /search/lat,lng format (from shortened URLs)
+  const pattern2 = /\/search\/(-?\d+\.?\d*),\s*\+?(-?\d+\.?\d*)/;
   const match2 = finalUrl.match(pattern2);
   if (match2) {
-    console.log('Found coordinates in !3d!4d format (pin location)');
+    console.log('Found coordinates in /search/ format');
     return {
       lat: parseFloat(match2[1]),
       lng: parseFloat(match2[2]),
     };
   }
 
-  // Pattern 3: ll=lat,lng format
-  const pattern3 = /ll=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  // Pattern 3: !3d!4d format (ACTUAL PIN LOCATION - most accurate for place URLs)
+  // This is buried in the data= parameter and represents the actual place coordinates
+  const pattern3 = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/;
   const match3 = finalUrl.match(pattern3);
   if (match3) {
-    console.log('Found coordinates in ll= format');
+    console.log('Found coordinates in !3d!4d format (pin location)');
     return {
       lat: parseFloat(match3[1]),
       lng: parseFloat(match3[2]),
     };
   }
 
-  // Pattern 4: q=lat,lng format
-  const pattern4 = /q=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  // Pattern 4: ll=lat,lng format
+  const pattern4 = /ll=(-?\d+\.\d+),(-?\d+\.\d+)/;
   const match4 = finalUrl.match(pattern4);
   if (match4) {
-    console.log('Found coordinates in q= format');
+    console.log('Found coordinates in ll= format');
     return {
       lat: parseFloat(match4[1]),
       lng: parseFloat(match4[2]),
+    };
+  }
+
+  // Pattern 5: q=lat,lng format
+  const pattern5 = /q=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  const match5 = finalUrl.match(pattern5);
+  if (match5) {
+    console.log('Found coordinates in q= format');
+    return {
+      lat: parseFloat(match5[1]),
+      lng: parseFloat(match5[2]),
     };
   }
 

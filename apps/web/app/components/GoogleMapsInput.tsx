@@ -72,18 +72,8 @@ export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location"
         setError(null);
         setHasChanged(true);
 
-        if (!url) {
-            onChange({ lat: 0, lng: 0 });
-            return;
-        }
-
-        const coords = extractLatLngFromMapsUrl(url);
-        if (coords) {
-            onChange(coords);
-            setError(null);
-        } else {
-            setError("Could not extract coordinates from URL. Please use a valid Google Maps link.");
-        }
+        // Don't validate or extract coordinates in frontend
+        // Let the backend handle all URL formats including shortened URLs
     };
 
     const handleConfirm = async () => {
@@ -115,12 +105,13 @@ export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location"
                             onChange={(e) => handleUrlChange(e.target.value)}
                             className="flex-1"
                         />
-                        {hasChanged && onConfirm && compositionId && (
+                        {hasChanged && onConfirm && compositionId && mapsUrl && (
                             <Button
                                 type="button"
                                 onClick={handleConfirm}
-                                disabled={isConfirming || !!error}
+                                disabled={isConfirming}
                                 loading={isConfirming}
+                                variant="outline"
                             >
                                 {isConfirming ? "Confirming..." : "Confirm"}
                             </Button>
