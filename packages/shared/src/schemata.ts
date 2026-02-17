@@ -64,8 +64,20 @@ export const LocationHighlightSchema = z.object({
   ).max(4),
 
   satelliteImageUrl: MediaUrl.optional(), // Satellite image from previous section
-  approachRoadVideoUrl: MediaUrl.optional(),
-  approachRoadVideoDurationInSeconds: z.number().positive().optional(), // Duration of approach road video
+
+  // ✅ Audio for this section
+  audio: AudioMetaSchema,
+  
+  // Optional section duration override (must be >= audio duration + 1s)
+  sectionDurationInSeconds: z.number().positive().optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Section 2B: Approach Road
+// ---------------------------------------------------------------------------
+export const ApproachRoadSchema = z.object({
+  videoUrl: MediaUrl.optional(),
+  imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
 
   // ✅ Audio for this section
   audio: AudioMetaSchema,
@@ -78,7 +90,8 @@ export const LocationHighlightSchema = z.object({
 // Section 3A: Internal Wide Shot
 // ---------------------------------------------------------------------------
 export const InternalWideShotSchema = z.object({
-  videoUrl: MediaUrl,
+  videoUrl: MediaUrl.optional(),
+  imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
   specs: z.object({
     clearHeight: z.string(),
     flooringType: z.string(),
@@ -94,7 +107,8 @@ export const InternalWideShotSchema = z.object({
 // Section 3B: Internal Dock
 // ---------------------------------------------------------------------------
 export const InternalDockSchema = z.object({
-  videoUrl: MediaUrl,
+  videoUrl: MediaUrl.optional(),
+  imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
   audio: AudioMetaSchema,
   sectionDurationInSeconds: z.number().positive().optional(),
 });
@@ -103,7 +117,8 @@ export const InternalDockSchema = z.object({
 // Section 3C: Internal Utilities
 // ---------------------------------------------------------------------------
 export const InternalUtilitiesSchema = z.object({
-  videoUrl: MediaUrl,
+  videoUrl: MediaUrl.optional(),
+  imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
   featuresPresent: z.array(
     z.enum(["security_room", "canteen", "washrooms", "fire_pump_room", "driver_rest_area"])
   ),
@@ -115,7 +130,8 @@ export const InternalUtilitiesSchema = z.object({
 // Section 4: External Docking
 // ---------------------------------------------------------------------------
 export const ExternalDockingSchema = z.object({
-  dockPanVideoUrl: MediaUrl,
+  dockPanVideoUrl: MediaUrl.optional(),
+  imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
   dockCount: z.number().int().optional(),
 
   // ✅ Audio for this section
@@ -129,7 +145,8 @@ export const ExternalDockingSchema = z.object({
 // Section 5: Compliances
 // ---------------------------------------------------------------------------
 export const ComplianceSchema = z.object({
-  fireSafetyVideoUrl: MediaUrl,
+  fireSafetyVideoUrl: MediaUrl.optional(),
+  imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
   safetyFeatures: z.array(
     z.enum(["hydrants", "sprinklers", "alarm_system", "pump_room", "smoke_detectors"])
   ),
@@ -153,6 +170,7 @@ export const CompositionProps = z.object({
   // The Video Sections
   satDroneSection: SatDroneSchema,
   locationSection: LocationHighlightSchema,
+  approachRoadSection: ApproachRoadSchema,
   internalWideShotSection: InternalWideShotSchema,
   internalDockSection: InternalDockSchema,
   internalUtilitiesSection: InternalUtilitiesSchema,

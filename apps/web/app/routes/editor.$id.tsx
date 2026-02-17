@@ -62,8 +62,17 @@ const defaultValues: WarehouseVideoProps = {
             transcript: "Located just 2 kilometers from NH-24 highway and 5 kilometers from Noida Metro Station.",
         },
     },
+    approachRoadSection: {
+        videoUrl: "",
+        imageUrl: "",
+        audio: {
+            durationInSeconds: 5,
+            transcript: "Approaching the facility via well-maintained access roads.",
+        },
+    },
     internalWideShotSection: {
         videoUrl: "",
+        imageUrl: "",
         specs: {
             clearHeight: "12 meters",
             flooringType: "Anti-skid epoxy",
@@ -77,6 +86,7 @@ const defaultValues: WarehouseVideoProps = {
     },
     internalDockSection: {
         videoUrl: "",
+        imageUrl: "",
         audio: {
             durationInSeconds: 5,
             transcript: "Internal docking facilities for efficient loading operations.",
@@ -84,6 +94,7 @@ const defaultValues: WarehouseVideoProps = {
     },
     internalUtilitiesSection: {
         videoUrl: "",
+        imageUrl: "",
         featuresPresent: [
             "security_room",
             "canteen",
@@ -97,6 +108,7 @@ const defaultValues: WarehouseVideoProps = {
     },
     dockingSection: {
         dockPanVideoUrl: "",
+        imageUrl: "",
         audio: {
             durationInSeconds: 10,
             transcript: "Multiple docking bays equipped for simultaneous loading and unloading operations.",
@@ -104,6 +116,7 @@ const defaultValues: WarehouseVideoProps = {
     },
     complianceSection: {
         fireSafetyVideoUrl: "",
+        imageUrl: "",
         safetyFeatures: [
             "hydrants",
             "sprinklers",
@@ -214,13 +227,59 @@ function EditorContent() {
                 
                 // Migrate old internalSection structure to new 3-section structure
                 let compositionData = composition.composition_components;
-                if (compositionData.internalSection && !compositionData.internalWideShotSection) {
+                
+                // Migrate old approach road structure
+                if (compositionData.locationSection && 
+                    (compositionData.locationSection as any).approachRoadVideoUrl !== undefined &&
+                    !compositionData.approachRoadSection) {
+                    const oldLocation = compositionData.locationSection as any;
+                    compositionData = {
+                        ...compositionData,
+                        locationSection: {
+                            nearbyPoints: oldLocation.nearbyPoints || [],
+                            satelliteImageUrl: oldLocation.satelliteImageUrl,
+                            audio: oldLocation.audio || {
+                                audioUrl: "",
+                                durationInSeconds: 5,
+                                transcript: "",
+                            },
+                        },
+                        approachRoadSection: {
+                            videoUrl: oldLocation.approachRoadVideoUrl || "",
+                            imageUrl: "",
+                            audio: {
+                                audioUrl: "",
+                                durationInSeconds: 5,
+                                transcript: "",
+                            },
+                        },
+                    };
+                }
+                
+                // Ensure approachRoadSection exists
+                if (!compositionData.approachRoadSection) {
+                    compositionData = {
+                        ...compositionData,
+                        approachRoadSection: {
+                            videoUrl: "",
+                            imageUrl: "",
+                            audio: {
+                                audioUrl: "",
+                                durationInSeconds: 5,
+                                transcript: "",
+                            },
+                        },
+                    };
+                }
+                
+                if ((compositionData as any).internalSection && !compositionData.internalWideShotSection) {
                     // Old structure detected - migrate to new structure
-                    const oldInternal = compositionData.internalSection as any;
+                    const oldInternal = (compositionData as any).internalSection;
                     compositionData = {
                         ...compositionData,
                         internalWideShotSection: {
                             videoUrl: oldInternal.wideShotVideoUrl || "",
+                            imageUrl: "",
                             specs: oldInternal.specs || {
                                 clearHeight: "",
                                 flooringType: "",
@@ -235,6 +294,7 @@ function EditorContent() {
                         },
                         internalDockSection: {
                             videoUrl: oldInternal.internalDockVideoUrl || "",
+                            imageUrl: "",
                             audio: {
                                 audioUrl: "",
                                 durationInSeconds: 5,
@@ -243,6 +303,7 @@ function EditorContent() {
                         },
                         internalUtilitiesSection: {
                             videoUrl: oldInternal.utilities?.videoUrl || "",
+                            imageUrl: "",
                             featuresPresent: oldInternal.utilities?.featuresPresent || [],
                             audio: {
                                 audioUrl: "",
@@ -465,12 +526,14 @@ function EditorContent() {
             props.satDroneSection.sectionDurationInSeconds
         );
         
-        // For location section, add approach video duration to the minimum required duration
-        const locationMinimumDuration = (props.locationSection.audio.durationInSeconds || 0) + 
-            (props.locationSection.approachRoadVideoDurationInSeconds || 0);
         const locationCalc = calculateSectionDuration(
-            locationMinimumDuration,
+            props.locationSection.audio.durationInSeconds || 0,
             props.locationSection.sectionDurationInSeconds
+        );
+        
+        const approachRoadCalc = calculateSectionDuration(
+            props.approachRoadSection.audio.durationInSeconds || 0,
+            props.approachRoadSection.sectionDurationInSeconds
         );
         
         // Three separate internal sections
@@ -499,14 +562,16 @@ function EditorContent() {
         // Use actual duration (which includes padding) for each section
         const satDroneDuration = satDroneCalc.actualDuration * fps;
         const locationDuration = locationCalc.actualDuration * fps;
+        const approachRoadDuration = approachRoadCalc.actualDuration * fps;
         const internalWideShotDuration = internalWideShotCalc.actualDuration * fps;
         const internalDockDuration = internalDockCalc.actualDuration * fps;
         const internalUtilitiesDuration = internalUtilitiesCalc.actualDuration * fps;
         const dockingDuration = dockingCalc.actualDuration * fps;
         const complianceDuration = complianceCalc.actualDuration * fps;
         
-        return introDuration + satDroneDuration + locationDuration + internalWideShotDuration + 
-               internalDockDuration + internalUtilitiesDuration + dockingDuration + complianceDuration + outroDuration;
+        return introDuration + satDroneDuration + locationDuration + approachRoadDuration + 
+               internalWideShotDuration + internalDockDuration + internalUtilitiesDuration + 
+               dockingDuration + complianceDuration + outroDuration;
     };
 
     const videoDuration = calculateDuration(playerInputProps);
@@ -606,6 +671,8 @@ function EditorContent() {
                             }}
                             controls
                             loop
+                            renderLoading={() => null}
+                            errorFallback={() => null}
                         />
                     </div>
                 </div>

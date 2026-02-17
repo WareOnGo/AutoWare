@@ -38,7 +38,6 @@ const defaultWarehouseProps: WarehouseVideoProps = {
       { name: "Ghaziabad Railway Station", type: "railway", distanceKm: 15 },
       { name: "Multispecialty Hospital", type: "hospital", distanceKm: 3 },
     ],
-    approachRoadVideoUrl: "https://storage.example.com/approach-road.mp4",
     audio: {
       audioUrl: "https://storage.example.com/audio/location-voiceover.mp3",
       durationInSeconds: 10,
@@ -46,9 +45,21 @@ const defaultWarehouseProps: WarehouseVideoProps = {
     },
   },
 
+  // Section 2B: Approach Road
+  approachRoadSection: {
+    videoUrl: "https://storage.example.com/approach-road.mp4",
+    imageUrl: "",
+    audio: {
+      audioUrl: "https://storage.example.com/audio/approach-voiceover.mp3",
+      durationInSeconds: 5,
+      transcript: "Approaching the facility via well-maintained access roads.",
+    },
+  },
+
   // Section 3: Internal Storage
-  internalSection: {
-    wideShotVideoUrl: "https://storage.example.com/internal-wide.mp4",
+  internalWideShotSection: {
+    videoUrl: "https://storage.example.com/internal-wide.mp4",
+    imageUrl: "",
     specs: {
       clearHeight: "32 feet",
       flooringType: "VDF (Vacuum Dewatered Flooring)",
@@ -56,21 +67,38 @@ const defaultWarehouseProps: WarehouseVideoProps = {
       hasInsulation: true,
       rackingType: "Selective Pallet Racking",
     },
-    internalDockVideoUrl: "https://storage.example.com/internal-dock.mp4",
-    utilities: {
-      videoUrl: "https://storage.example.com/utilities.mp4",
-      featuresPresent: ["security_room", "canteen", "washrooms", "fire_pump_room", "driver_rest_area"],
-    },
     audio: {
-      audioUrl: "https://storage.example.com/audio/internal-voiceover.mp3",
-      durationInSeconds: 15,
-      transcript: "The facility features 32 feet clear height with VDF flooring, complete ventilation and insulation. Amenities include security room, canteen, modern washrooms, fire pump room, and dedicated driver rest area.",
+      audioUrl: "https://storage.example.com/audio/internal-wide-voiceover.mp3",
+      durationInSeconds: 8,
+      transcript: "The facility features 32 feet clear height with VDF flooring, complete ventilation and insulation.",
+    },
+  },
+
+  internalDockSection: {
+    videoUrl: "https://storage.example.com/internal-dock.mp4",
+    imageUrl: "",
+    audio: {
+      audioUrl: "https://storage.example.com/audio/internal-dock-voiceover.mp3",
+      durationInSeconds: 5,
+      transcript: "Internal docking facilities for efficient loading operations.",
+    },
+  },
+
+  internalUtilitiesSection: {
+    videoUrl: "https://storage.example.com/utilities.mp4",
+    imageUrl: "",
+    featuresPresent: ["security_room", "canteen", "washrooms", "fire_pump_room", "driver_rest_area"],
+    audio: {
+      audioUrl: "https://storage.example.com/audio/utilities-voiceover.mp3",
+      durationInSeconds: 7,
+      transcript: "Amenities include security room, canteen, modern washrooms, fire pump room, and dedicated driver rest area.",
     },
   },
 
   // Section 4: External Docking
   dockingSection: {
     dockPanVideoUrl: "https://storage.example.com/dock-pan.mp4",
+    imageUrl: "",
     dockCount: 12,
     audio: {
       audioUrl: "https://storage.example.com/audio/docking-voiceover.mp3",
@@ -82,6 +110,7 @@ const defaultWarehouseProps: WarehouseVideoProps = {
   // Section 5: Compliances
   complianceSection: {
     fireSafetyVideoUrl: "https://storage.example.com/fire-safety.mp4",
+    imageUrl: "",
     safetyFeatures: ["hydrants", "sprinklers", "alarm_system", "pump_room", "smoke_detectors"],
     audio: {
       audioUrl: "https://storage.example.com/audio/compliance-voiceover.mp3",

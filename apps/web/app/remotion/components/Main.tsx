@@ -3,6 +3,7 @@ import { Intro } from "./videoSections/Intro";
 import { Outro } from "./videoSections/Outro";
 import { SatDrone } from "./videoSections/SatDrone";
 import { LocationVid } from "./videoSections/Location";
+import { ApproachRoad } from "./videoSections/ApproachRoad";
 import { InternalWideShot } from "./videoSections/InternalWideShot";
 import { InternalDock } from "./videoSections/InternalDock";
 import { InternalUtilities } from "./videoSections/InternalUtilities";
@@ -65,12 +66,14 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
     props.satDroneSection.sectionDurationInSeconds
   );
   
-  // For location section, add approach video duration to the minimum required duration
-  const locationMinimumDuration = (props.locationSection.audio.durationInSeconds || 0) + 
-    (props.locationSection.approachRoadVideoDurationInSeconds || 0);
   const locationCalc = calculateSectionDuration(
-    locationMinimumDuration,
+    props.locationSection.audio.durationInSeconds || 0,
     props.locationSection.sectionDurationInSeconds
+  );
+
+  const approachRoadCalc = calculateSectionDuration(
+    props.approachRoadSection.audio.durationInSeconds || 0,
+    props.approachRoadSection.sectionDurationInSeconds
   );
   
   // Three separate internal sections
@@ -98,6 +101,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
   
   const satDroneDuration = satDroneCalc.actualDuration * fps;
   const locationDuration = locationCalc.actualDuration * fps;
+  const approachRoadDuration = approachRoadCalc.actualDuration * fps;
   const internalWideShotDuration = internalWideShotCalc.actualDuration * fps;
   const internalDockDuration = internalDockCalc.actualDuration * fps;
   const internalUtilitiesDuration = internalUtilitiesCalc.actualDuration * fps;
@@ -107,7 +111,8 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
 
   const satDroneStart = introDuration;
   const locationStart = satDroneStart + satDroneDuration;
-  const internalWideShotStart = locationStart + locationDuration;
+  const approachRoadStart = locationStart + locationDuration;
+  const internalWideShotStart = approachRoadStart + approachRoadDuration;
   const internalDockStart = internalWideShotStart + internalWideShotDuration;
   const internalUtilitiesStart = internalDockStart + internalDockDuration;
   const dockingStart = internalUtilitiesStart + internalUtilitiesDuration;
@@ -147,7 +152,15 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
         />
       </Sequence>
 
-      {/* Fourth Video - Internal Wide Shot */}
+      {/* Fourth Video - Approach Road */}
+      <Sequence from={approachRoadStart} durationInFrames={approachRoadDuration}>
+        <ApproachRoad 
+          {...props.approachRoadSection}
+          startPaddingInSeconds={approachRoadCalc.startPadding}
+        />
+      </Sequence>
+
+      {/* Fifth Video - Internal Wide Shot */}
       <Sequence from={internalWideShotStart} durationInFrames={internalWideShotDuration}>
         <InternalWideShot 
           {...props.internalWideShotSection}
@@ -155,7 +168,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
         />
       </Sequence>
 
-      {/* Fifth Video - Internal Dock */}
+      {/* Sixth Video - Internal Dock */}
       <Sequence from={internalDockStart} durationInFrames={internalDockDuration}>
         <InternalDock 
           {...props.internalDockSection}
@@ -163,7 +176,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
         />
       </Sequence>
 
-      {/* Sixth Video - Internal Utilities */}
+      {/* Seventh Video - Internal Utilities */}
       <Sequence from={internalUtilitiesStart} durationInFrames={internalUtilitiesDuration}>
         <InternalUtilities 
           {...props.internalUtilitiesSection}
@@ -171,7 +184,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
         />
       </Sequence>
 
-      {/* Seventh Video Docking & parking*/}
+      {/* Eighth Video Docking & parking*/}
       <Sequence from={dockingStart} durationInFrames={dockingDuration}>
         <DockingParkingVid 
           {...props.dockingSection}
@@ -179,7 +192,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
         />
       </Sequence>
 
-      {/* Eighth Video Compliances */}
+      {/* Ninth Video Compliances */}
       <Sequence from={complianceStart} durationInFrames={complianceDuration}>
         <CompliancesVid 
           {...props.complianceSection}
@@ -187,7 +200,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
         />
       </Sequence>
 
-      {/* Ninth Video (Outro) */}
+      {/* Tenth Video (Outro) */}
       <Sequence from={outroStart} durationInFrames={outroDuration}>
         <Outro />
       </Sequence>

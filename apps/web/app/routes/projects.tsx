@@ -60,7 +60,15 @@ function ProjectsPageContent() {
         },
         locationSection: {
           nearbyPoints: [],
-          approachRoadVideoUrl: "",
+          audio: {
+            audioUrl: "",
+            durationInSeconds: 5,
+            transcript: "",
+          },
+        },
+        approachRoadSection: {
+          videoUrl: "",
+          imageUrl: "",
           audio: {
             audioUrl: "",
             durationInSeconds: 5,
@@ -69,6 +77,7 @@ function ProjectsPageContent() {
         },
         internalWideShotSection: {
           videoUrl: "",
+          imageUrl: "",
           specs: {
             clearHeight: "",
             flooringType: "",
@@ -84,6 +93,7 @@ function ProjectsPageContent() {
         },
         internalDockSection: {
           videoUrl: "",
+          imageUrl: "",
           audio: {
             audioUrl: "",
             durationInSeconds: 5,
@@ -92,6 +102,7 @@ function ProjectsPageContent() {
         },
         internalUtilitiesSection: {
           videoUrl: "",
+          imageUrl: "",
           featuresPresent: [],
           audio: {
             audioUrl: "",
@@ -101,6 +112,7 @@ function ProjectsPageContent() {
         },
         dockingSection: {
           dockPanVideoUrl: "",
+          imageUrl: "",
           dockCount: 0,
           audio: {
             audioUrl: "",
@@ -110,6 +122,7 @@ function ProjectsPageContent() {
         },
         complianceSection: {
           fireSafetyVideoUrl: "",
+          imageUrl: "",
           safetyFeatures: [],
           audio: {
             audioUrl: "",

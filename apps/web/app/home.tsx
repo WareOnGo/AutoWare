@@ -103,6 +103,8 @@ export default function Index() {
             controls
             autoPlay
             loop
+            renderLoading={() => null}
+            errorFallback={() => null}
           />
         </div>
         {/* RenderControls temporarily removed - will be updated to work with warehouse props */}

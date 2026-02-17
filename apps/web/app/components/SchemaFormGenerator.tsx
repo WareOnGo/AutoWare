@@ -24,6 +24,8 @@ import {
     SelectValue,
 } from "./ui/select";
 import { VideoUpload } from "./VideoUpload";
+import { ImageUpload } from "./ImageUpload";
+import { MediaUpload } from "./MediaUpload";
 import { GoogleMapsInput } from "./GoogleMapsInput";
 import { TranscriptInput } from "./TranscriptInput";
 
@@ -163,6 +165,7 @@ function renderField<T extends FieldValues>(
                 />
             );
         }
+
         return (
             <div key={fieldPath} className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{label}</h3>
@@ -408,7 +411,7 @@ function renderField<T extends FieldValues>(
         );
     }
 
-    // Handle string (check for video fields by name)
+    // Handle string (check for video and image fields by name)
     if (fieldType === "ZodString") {
         // Use VideoUpload for any field containing "video" in the name
         if (key.toLowerCase().includes("video")) {
@@ -422,6 +425,31 @@ function renderField<T extends FieldValues>(
                             <FormLabel className="text-base font-medium">{label}</FormLabel>
                             <FormControl>
                                 <VideoUpload
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    onFileSelect={(file) => onFileSelect?.(fieldPath, file)}
+                                    label={`Upload ${label}`}
+                                />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            );
+        }
+
+        // Use ImageUpload for any field containing "image" in the name
+        if (key.toLowerCase().includes("image")) {
+            return (
+                <FormField
+                    key={fieldPath}
+                    control={form.control}
+                    name={fieldPath as FieldPath<T>}
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="text-base font-medium">{label}</FormLabel>
+                            <FormControl>
+                                <ImageUpload
                                     value={field.value}
                                     onChange={field.onChange}
                                     onFileSelect={(file) => onFileSelect?.(fieldPath, file)}
@@ -484,6 +512,13 @@ export function SchemaFormGenerator<T extends FieldValues>({
                 const isSection = getFieldType(zodType) === "ZodObject";
 
                 if (isSection) {
+                    const sectionShape = (zodType as any)._def.shape();
+                    
+                    // Check if this section has both videoUrl and imageUrl fields
+                    const hasVideoUrl = sectionShape.videoUrl !== undefined;
+                    const hasImageUrl = sectionShape.imageUrl !== undefined;
+                    const shouldUseMediaUpload = hasVideoUrl && hasImageUrl;
+                    
                     return (
                         <AccordionItem value={key} key={key} className="border rounded-lg bg-white shadow-sm px-4">
                             <AccordionTrigger className="hover:no-underline py-4">
@@ -491,10 +526,40 @@ export function SchemaFormGenerator<T extends FieldValues>({
                             </AccordionTrigger>
                             <AccordionContent className="pt-2 pb-6">
                                 <div className="space-y-6">
-                                    {/* Render children of the section manually to skip the wrapper div */}
-                                    {Object.entries((zodType as any)._def.shape()).map(([childKey, childType]) =>
-                                        renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech)
-                                    )}
+                                    {/* Render children of the section */}
+                                    {Object.entries(sectionShape).map(([childKey, childType]) => {
+                                        // Skip videoUrl and imageUrl if we're using MediaUpload
+                                        if (shouldUseMediaUpload && (childKey === 'videoUrl' || childKey === 'imageUrl')) {
+                                            // Only render MediaUpload once for videoUrl
+                                            if (childKey === 'videoUrl') {
+                                                const videoFieldPath = `${key}.videoUrl` as FieldPath<T>;
+                                                const imageFieldPath = `${key}.imageUrl` as FieldPath<T>;
+                                                
+                                                return (
+                                                    <div key={`${key}-media`}>
+                                                        <FormLabel className="text-base font-medium">Media (Video or Image)</FormLabel>
+                                                        <MediaUpload
+                                                            videoValue={form.watch(videoFieldPath)}
+                                                            imageValue={form.watch(imageFieldPath)}
+                                                            onVideoChange={(url) => form.setValue(videoFieldPath, url as any)}
+                                                            onImageChange={(url) => form.setValue(imageFieldPath, url as any)}
+                                                            onFileSelect={(file, type) => {
+                                                                if (file) {
+                                                                    const targetPath = type === 'video' ? videoFieldPath : imageFieldPath;
+                                                                    onFileSelect?.(targetPath, file);
+                                                                }
+                                                            }}
+                                                            label="Upload Video or Image"
+                                                        />
+                                                    </div>
+                                                );
+                                            }
+                                            // Skip imageUrl since we already rendered MediaUpload for videoUrl
+                                            return null;
+                                        }
+                                        
+                                        return renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech);
+                                    })}
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
