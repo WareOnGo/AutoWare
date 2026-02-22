@@ -130,6 +130,13 @@ const defaultValues: WarehouseVideoProps = {
             transcript: "Fully compliant with all safety regulations and fire safety standards.",
         },
     },
+    cadFileSection: {
+        imageUrl: "",
+        audio: {
+            durationInSeconds: 5,
+            transcript: "Here is the architectural layout and CAD design of the facility.",
+        },
+    },
 };
 
 export default function Editor() {
@@ -208,6 +215,10 @@ function EditorContent() {
         control: form.control,
         name: "complianceSection.audio.durationInSeconds",
     });
+    const cadFileAudioDuration = useWatch({
+        control: form.control,
+        name: "cadFileSection.audio.durationInSeconds",
+    });
 
     // Trigger validation when audio durations change
     useEffect(() => {
@@ -220,6 +231,7 @@ function EditorContent() {
             "internalUtilitiesSection.sectionDurationInSeconds",
             "dockingSection.sectionDurationInSeconds",
             "complianceSection.sectionDurationInSeconds",
+            "cadFileSection.sectionDurationInSeconds",
         ] as const;
 
         fields.forEach(field => {
@@ -229,7 +241,7 @@ function EditorContent() {
             }
         });
     }, [satDroneAudioDuration, locationAudioDuration, internalWideShotAudioDuration,
-        internalDockAudioDuration, internalUtilitiesAudioDuration, dockingAudioDuration, complianceAudioDuration, form]);
+        internalDockAudioDuration, internalUtilitiesAudioDuration, dockingAudioDuration, complianceAudioDuration, cadFileAudioDuration, form]);
 
     // Load project data on mount
     useEffect(() => {
@@ -338,6 +350,21 @@ function EditorContent() {
                     };
                     // Remove old internalSection
                     delete (compositionData as any).internalSection;
+                }
+
+                // Ensure cadFileSection exists (for old projects)
+                if (!compositionData.cadFileSection) {
+                    compositionData = {
+                        ...compositionData,
+                        cadFileSection: {
+                            imageUrl: "",
+                            audio: {
+                                audioUrl: "",
+                                durationInSeconds: 5,
+                                transcript: "",
+                            },
+                        },
+                    };
                 }
 
                 // Reset form with fetched data
@@ -654,6 +681,10 @@ function EditorContent() {
             props.complianceSection.audio.durationInSeconds || 0,
             props.complianceSection.sectionDurationInSeconds
         );
+        const cadFileCalc = calculateSectionDuration(
+            props.cadFileSection.audio.durationInSeconds || 0,
+            props.cadFileSection.sectionDurationInSeconds
+        );
 
         // Use actual duration (which includes padding) for each section
         const satDroneDuration = satDroneCalc.actualDuration * fps;
@@ -664,10 +695,11 @@ function EditorContent() {
         const internalUtilitiesDuration = internalUtilitiesCalc.actualDuration * fps;
         const dockingDuration = dockingCalc.actualDuration * fps;
         const complianceDuration = complianceCalc.actualDuration * fps;
+        const cadFileDuration = cadFileCalc.actualDuration * fps;
 
         return introDuration + satDroneDuration + locationDuration + approachRoadDuration +
             internalWideShotDuration + internalDockDuration + internalUtilitiesDuration +
-            dockingDuration + complianceDuration + outroDuration;
+            dockingDuration + complianceDuration + cadFileDuration + outroDuration;
     };
 
     const videoDuration = calculateDuration(playerInputProps);

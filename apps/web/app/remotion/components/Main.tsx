@@ -9,6 +9,7 @@ import { InternalDock } from "./videoSections/InternalDock";
 import { InternalUtilities } from "./videoSections/InternalUtilities";
 import { DockingParkingVid } from "./videoSections/DockingParkingVid";
 import { CompliancesVid } from "./videoSections/CompliancesVid";
+import { CadFile } from "./videoSections/CadFile";
 
 import { WarehouseVideoProps } from "@repo/shared";
 
@@ -101,6 +102,10 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
     props.complianceSection.audio.durationInSeconds || 0,
     props.complianceSection.sectionDurationInSeconds
   );
+  const cadFileCalc = calculateSectionDuration(
+    props.cadFileSection.audio.durationInSeconds || 0,
+    props.cadFileSection.sectionDurationInSeconds
+  );
 
   const satDroneDuration = satDroneCalc.actualDuration * fps;
   const locationDuration = locationCalc.actualDuration * fps;
@@ -110,6 +115,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
   const internalUtilitiesDuration = internalUtilitiesCalc.actualDuration * fps;
   const dockingDuration = dockingCalc.actualDuration * fps;
   const complianceDuration = complianceCalc.actualDuration * fps;
+  const cadFileDuration = cadFileCalc.actualDuration * fps;
   const outroDuration = 5 * fps;
 
   // Calculate start times with overlap
@@ -121,7 +127,8 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
   const internalUtilitiesStart = internalDockStart + internalDockDuration - TRANSITION_DURATION;
   const dockingStart = internalUtilitiesStart + internalUtilitiesDuration - TRANSITION_DURATION;
   const complianceStart = dockingStart + dockingDuration - TRANSITION_DURATION;
-  const outroStart = complianceStart + complianceDuration - TRANSITION_DURATION;
+  const cadFileStart = complianceStart + complianceDuration - TRANSITION_DURATION;
+  const outroStart = cadFileStart + cadFileDuration - TRANSITION_DURATION;
 
   // Calculate total duration (should end after outro)
   // Note: We don't subtract transition duration here because the last frame plays out fully
@@ -219,6 +226,16 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
           <CompliancesVid
             {...props.complianceSection}
             startPaddingInSeconds={complianceCalc.startPadding}
+          />
+        </TransitionWrapper>
+      </Sequence>
+
+      {/* CAD File / Architecture Diagram */}
+      <Sequence from={cadFileStart} durationInFrames={cadFileDuration}>
+        <TransitionWrapper transitionDuration={TRANSITION_DURATION} sequenceDuration={cadFileDuration}>
+          <CadFile
+            {...props.cadFileSection}
+            startPaddingInSeconds={cadFileCalc.startPadding}
           />
         </TransitionWrapper>
       </Sequence>
