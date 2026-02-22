@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Player } from "@remotion/player";
+import { Player, type PlayerRef } from "@remotion/player";
 import { useParams, useNavigate } from "react-router";
 import type { Route } from "./+types/editor.$id";
 import stylesheet from "~/app.css?url";
@@ -10,7 +10,7 @@ import {
     COMPOSITION_HEIGHT,
     COMPOSITION_WIDTH,
 } from "~/remotion/constants.mjs";
-import { CompositionProps, WarehouseVideoProps } from "@repo/shared";
+import { CompositionProps, WarehouseVideoProps, SECTION_KEYS } from "@repo/shared";
 import { Main } from "~/remotion/components/Main";
 import { Form } from "~/components/ui/form";
 
@@ -137,6 +137,7 @@ const defaultValues: WarehouseVideoProps = {
             transcript: "Here is the architectural layout and CAD design of the facility.",
         },
     },
+    sectionOrder: [...SECTION_KEYS],
 };
 
 export default function Editor() {
@@ -157,6 +158,8 @@ function EditorContent() {
     const [isSaving, setIsSaving] = useState(false);
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
     const [showRenderConfirm, setShowRenderConfirm] = useState(false);
+    const playerRef = useRef<PlayerRef>(null);
+    const wasPlayingRef = useRef(false);
     const [isSavingForRender, setIsSavingForRender] = useState(false);
     const [triggerRender, setTriggerRender] = useState(false);
 
@@ -364,6 +367,14 @@ function EditorContent() {
                                 transcript: "",
                             },
                         },
+                    };
+                }
+
+                // Ensure sectionOrder exists (for old projects)
+                if (!compositionData.sectionOrder || !Array.isArray(compositionData.sectionOrder) || compositionData.sectionOrder.length === 0) {
+                    compositionData = {
+                        ...compositionData,
+                        sectionOrder: [...SECTION_KEYS],
                     };
                 }
 
@@ -643,63 +654,24 @@ function EditorContent() {
         const introDuration = 5 * fps;
         const outroDuration = 5 * fps;
 
-        // Calculate each section duration using actual audio durations and padding
-        const satDroneCalc = calculateSectionDuration(
-            props.satDroneSection.audio.durationInSeconds || 0,
-            props.satDroneSection.sectionDurationInSeconds
-        );
+        // Sum up all section durations dynamically
+        const sectionKeys: string[] = ['satDroneSection', 'locationSection', 'approachRoadSection',
+            'cadFileSection', 'internalWideShotSection', 'internalDockSection',
+            'internalUtilitiesSection', 'dockingSection', 'complianceSection'];
 
-        const locationCalc = calculateSectionDuration(
-            props.locationSection.audio.durationInSeconds || 0,
-            props.locationSection.sectionDurationInSeconds
-        );
+        let totalSectionDuration = 0;
+        for (const key of sectionKeys) {
+            const section = (props as any)[key];
+            if (section?.audio) {
+                const calc = calculateSectionDuration(
+                    section.audio.durationInSeconds || 0,
+                    section.sectionDurationInSeconds
+                );
+                totalSectionDuration += calc.actualDuration * fps;
+            }
+        }
 
-        const approachRoadCalc = calculateSectionDuration(
-            props.approachRoadSection.audio.durationInSeconds || 0,
-            props.approachRoadSection.sectionDurationInSeconds
-        );
-
-        // Three separate internal sections
-        const internalWideShotCalc = calculateSectionDuration(
-            props.internalWideShotSection.audio.durationInSeconds || 0,
-            props.internalWideShotSection.sectionDurationInSeconds
-        );
-        const internalDockCalc = calculateSectionDuration(
-            props.internalDockSection.audio.durationInSeconds || 0,
-            props.internalDockSection.sectionDurationInSeconds
-        );
-        const internalUtilitiesCalc = calculateSectionDuration(
-            props.internalUtilitiesSection.audio.durationInSeconds || 0,
-            props.internalUtilitiesSection.sectionDurationInSeconds
-        );
-
-        const dockingCalc = calculateSectionDuration(
-            props.dockingSection.audio.durationInSeconds || 0,
-            props.dockingSection.sectionDurationInSeconds
-        );
-        const complianceCalc = calculateSectionDuration(
-            props.complianceSection.audio.durationInSeconds || 0,
-            props.complianceSection.sectionDurationInSeconds
-        );
-        const cadFileCalc = calculateSectionDuration(
-            props.cadFileSection.audio.durationInSeconds || 0,
-            props.cadFileSection.sectionDurationInSeconds
-        );
-
-        // Use actual duration (which includes padding) for each section
-        const satDroneDuration = satDroneCalc.actualDuration * fps;
-        const locationDuration = locationCalc.actualDuration * fps;
-        const approachRoadDuration = approachRoadCalc.actualDuration * fps;
-        const internalWideShotDuration = internalWideShotCalc.actualDuration * fps;
-        const internalDockDuration = internalDockCalc.actualDuration * fps;
-        const internalUtilitiesDuration = internalUtilitiesCalc.actualDuration * fps;
-        const dockingDuration = dockingCalc.actualDuration * fps;
-        const complianceDuration = complianceCalc.actualDuration * fps;
-        const cadFileDuration = cadFileCalc.actualDuration * fps;
-
-        return introDuration + satDroneDuration + locationDuration + approachRoadDuration +
-            internalWideShotDuration + internalDockDuration + internalUtilitiesDuration +
-            dockingDuration + complianceDuration + cadFileDuration + outroDuration;
+        return introDuration + totalSectionDuration + outroDuration;
     };
 
     const videoDuration = calculateDuration(playerInputProps);
@@ -908,6 +880,7 @@ function EditorContent() {
                 <div className="bg-gray-50 flex items-center justify-center p-4 overflow-hidden border-r-2 border-black">
                     <div className="w-full max-w-full">
                         <Player
+                            ref={playerRef}
                             component={Main}
                             inputProps={playerInputProps}
                             durationInFrames={videoDuration}
@@ -939,6 +912,19 @@ function EditorContent() {
                                     onSatelliteImageConfirm={handleSatelliteImageConfirm}
                                     onGenerateSpeech={handleGenerateSpeech}
                                     isGeneratingAudio={isGeneratingAudio}
+                                    sectionOrder={form.watch('sectionOrder') || [...SECTION_KEYS]}
+                                    onSectionOrderChange={(newOrder) => form.setValue('sectionOrder', newOrder)}
+                                    onDraggingChange={(isDragging) => {
+                                        if (isDragging) {
+                                            // Remember if playing, then pause
+                                            const playing = playerRef.current?.isPlaying() ?? false;
+                                            wasPlayingRef.current = playing;
+                                            if (playing) playerRef.current?.pause();
+                                        } else {
+                                            // Resume if it was playing before drag
+                                            if (wasPlayingRef.current) playerRef.current?.play();
+                                        }
+                                    }}
                                 />
                             </form>
                         </Form>

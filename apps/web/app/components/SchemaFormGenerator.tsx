@@ -28,6 +28,24 @@ import { ImageUpload } from "./ImageUpload";
 import { MediaUpload } from "./MediaUpload";
 import { GoogleMapsInput } from "./GoogleMapsInput";
 import { TranscriptInput } from "./TranscriptInput";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { SECTION_DISPLAY_NAMES, type SectionKey } from "@repo/shared";
 
 interface SchemaFormGeneratorProps<T extends FieldValues> {
     schema: z.ZodType<T>;
@@ -38,6 +56,74 @@ interface SchemaFormGeneratorProps<T extends FieldValues> {
     onSatelliteImageConfirm?: (googleMapsUrl: string) => Promise<void>;
     onGenerateSpeech?: (transcript: string, fieldPath: string) => Promise<void>;
     isGeneratingAudio?: boolean;
+    sectionOrder?: string[];
+    onSectionOrderChange?: (newOrder: string[]) => void;
+    onDraggingChange?: (isDragging: boolean) => void;
+}
+
+// Sortable accordion item with drag handle
+function SortableAccordionItem({ id, index, children }: { id: string; index: number; children: React.ReactNode }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        position: 'relative' as const,
+    };
+
+    const displayName = SECTION_DISPLAY_NAMES[id as SectionKey] || toTitleCase(id);
+
+    return (
+        <AccordionItem value={id} className={`border rounded-lg bg-white shadow-sm px-4 ${isDragging ? 'ring-2 ring-blue-200 shadow-lg' : ''}`} ref={setNodeRef} style={style}>
+            <AccordionTrigger className="hover:no-underline py-4">
+                <div className="flex items-center gap-3 w-full">
+                    {/* Drag handle */}
+                    <button
+                        type="button"
+                        {...attributes}
+                        {...listeners}
+                        className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                        title="Drag to reorder"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <circle cx="5" cy="3" r="1.5" />
+                            <circle cx="11" cy="3" r="1.5" />
+                            <circle cx="5" cy="8" r="1.5" />
+                            <circle cx="11" cy="8" r="1.5" />
+                            <circle cx="5" cy="13" r="1.5" />
+                            <circle cx="11" cy="13" r="1.5" />
+                        </svg>
+                    </button>
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-xs font-bold flex items-center justify-center">
+                        {index + 1}
+                    </span>
+                    <span className="text-lg font-semibold text-gray-900">{displayName}</span>
+                </div>
+            </AccordionTrigger>
+            {children}
+        </AccordionItem>
+    );
+}
+
+// Sensors for DnD (defined outside component to avoid re-creation)
+function useDndSensors() {
+    return useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 4 },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
 }
 
 // Helper to convert camelCase to Title Case
@@ -89,6 +175,11 @@ function renderField<T extends FieldValues>(
     const label = toTitleCase(key);
     const fieldType = getFieldType(zodType);
 
+    // Skip sectionOrder - handled by SectionOrderEditor component
+    if (key === "sectionOrder") {
+        return null;
+    }
+
     // Skip audio URL fields - we'll handle TTS conversion later
     if (key === "audioUrl") {
         return null;
@@ -108,11 +199,11 @@ function renderField<T extends FieldValues>(
     if (key === "transcript" && fieldType === "ZodString") {
         // Extract the parent path (e.g., "satDroneSection.audio" from "satDroneSection.audio.transcript")
         const parentPath = basePath || "";
-        
+
         // Get sibling fields from the audio object
         const audioUrlPath = `${parentPath}.audioUrl` as FieldPath<T>;
         const audioDurationPath = `${parentPath}.durationInSeconds` as FieldPath<T>;
-        
+
         const audioUrl = form.watch(audioUrlPath);
         const audioDuration = form.watch(audioDurationPath);
 
@@ -301,10 +392,10 @@ function renderField<T extends FieldValues>(
             const parentPath = basePath || "";
             const audioDurationPath = `${parentPath}.audio.durationInSeconds` as FieldPath<T>;
             const audioDuration = form.watch(audioDurationPath);
-            
+
             // Calculate minimum duration
             const minDuration = audioDuration ? audioDuration + 1.0 : 0;
-            
+
             return (
                 <FormField
                     key={fieldPath}
@@ -314,7 +405,7 @@ function renderField<T extends FieldValues>(
                         validate: (value) => {
                             if (!value) return true; // Optional field
                             if (!audioDuration || audioDuration <= 0) return true; // No audio, no validation needed
-                            
+
                             const minRequired = audioDuration + 1.0;
                             if (value < minRequired) {
                                 return `Section duration must be at least ${minRequired.toFixed(1)} seconds (audio length + 1s buffer)`;
@@ -351,7 +442,7 @@ function renderField<T extends FieldValues>(
                 />
             );
         }
-        
+
         // Special handling for video duration fields
         if (key.toLowerCase().includes('duration')) {
             return (
@@ -386,7 +477,7 @@ function renderField<T extends FieldValues>(
                 />
             );
         }
-        
+
         return (
             <FormField
                 key={fieldPath}
@@ -493,6 +584,9 @@ export function SchemaFormGenerator<T extends FieldValues>({
     onSatelliteImageConfirm,
     onGenerateSpeech,
     isGeneratingAudio,
+    sectionOrder,
+    onSectionOrderChange,
+    onDraggingChange,
 }: SchemaFormGeneratorProps<T>) {
     // Get the schema shape
     const schemaType = schema as any;
@@ -503,75 +597,147 @@ export function SchemaFormGenerator<T extends FieldValues>({
 
     const shape = schemaType._def.shape();
 
-    // Determine default open value - open the first section by default
-    const defaultOpenValue = Object.keys(shape)[0];
+    // Separate orderable sections from non-sections
+    const allEntries = Object.entries(shape);
+    const nonSectionEntries = allEntries.filter(([key, zodType]) => {
+        if (key === "sectionOrder") return false;
+        return getFieldType(zodType) !== "ZodObject" || !sectionOrder?.includes(key);
+    });
+    const sectionEntries = allEntries.filter(([key, zodType]) => {
+        return getFieldType(zodType) === "ZodObject" && sectionOrder?.includes(key);
+    });
+
+    // Build a map for quick lookup
+    const sectionMap = new Map(sectionEntries);
+
+    // Determine order: use sectionOrder if available, otherwise schema order
+    const orderedSectionKeys = sectionOrder && onSectionOrderChange
+        ? sectionOrder.filter(key => sectionMap.has(key))
+        : sectionEntries.map(([key]) => key);
+
+    // Determine default open value
+    const defaultOpenValue = nonSectionEntries.length > 0 ? nonSectionEntries[0][0] : orderedSectionKeys[0];
+
+    const renderSectionItem = (key: string) => {
+        const zodType = sectionMap.get(key) || shape[key];
+        if (!zodType) return null;
+        const sectionShape = (zodType as any)._def.shape();
+        const hasVideoUrl = sectionShape.videoUrl !== undefined;
+        const hasImageUrl = sectionShape.imageUrl !== undefined;
+        const shouldUseMediaUpload = hasVideoUrl && hasImageUrl;
+
+        return (
+            <AccordionContent className="pt-2 pb-6">
+                <div className="space-y-6">
+                    {Object.entries(sectionShape).map(([childKey, childType]) => {
+                        if (shouldUseMediaUpload && (childKey === 'videoUrl' || childKey === 'imageUrl')) {
+                            if (childKey === 'videoUrl') {
+                                const videoFieldPath = `${key}.videoUrl` as FieldPath<T>;
+                                const imageFieldPath = `${key}.imageUrl` as FieldPath<T>;
+                                return (
+                                    <div key={`${key}-media`}>
+                                        <FormLabel className="text-base font-medium">Media (Video or Image)</FormLabel>
+                                        <MediaUpload
+                                            videoValue={form.watch(videoFieldPath)}
+                                            imageValue={form.watch(imageFieldPath)}
+                                            onVideoChange={(url) => form.setValue(videoFieldPath, url as any)}
+                                            onImageChange={(url) => form.setValue(imageFieldPath, url as any)}
+                                            onFileSelect={(file, type) => {
+                                                if (file) {
+                                                    const targetPath = type === 'video' ? videoFieldPath : imageFieldPath;
+                                                    onFileSelect?.(targetPath, file);
+                                                }
+                                            }}
+                                            label="Upload Video or Image"
+                                        />
+                                    </div>
+                                );
+                            }
+                            return null;
+                        }
+                        return renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech);
+                    })}
+                </div>
+            </AccordionContent>
+        );
+    };
+
+    const sensors = useDndSensors();
+    const hasDnd = sectionOrder && onSectionOrderChange && orderedSectionKeys.length > 0;
+    const [openSection, setOpenSection] = React.useState<string>("");
 
     return (
-        <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={defaultOpenValue}>
-            {Object.entries(shape).map(([key, zodType]) => {
-                const isSection = getFieldType(zodType) === "ZodObject";
+        <div className="w-full space-y-4">
+            {/* Non-section fields (e.g. intro) */}
+            {nonSectionEntries.length > 0 && (
+                <Accordion type="single" collapsible className="w-full space-y-4" defaultValue={defaultOpenValue}>
+                    {nonSectionEntries.map(([key, zodType]) => {
+                        const isSection = getFieldType(zodType) === "ZodObject";
+                        if (isSection) {
+                            return (
+                                <AccordionItem value={key} key={key} className="border rounded-lg bg-white shadow-sm px-4">
+                                    <AccordionTrigger className="hover:no-underline py-4">
+                                        <span className="text-lg font-semibold text-gray-900">{toTitleCase(key)}</span>
+                                    </AccordionTrigger>
+                                    {renderSectionItem(key)}
+                                </AccordionItem>
+                            );
+                        }
+                        return (
+                            <div key={key} className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
+                                {renderField(key, zodType, form, basePath, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech)}
+                            </div>
+                        );
+                    })}
+                </Accordion>
+            )}
 
-                if (isSection) {
-                    const sectionShape = (zodType as any)._def.shape();
-                    
-                    // Check if this section has both videoUrl and imageUrl fields
-                    const hasVideoUrl = sectionShape.videoUrl !== undefined;
-                    const hasImageUrl = sectionShape.imageUrl !== undefined;
-                    const shouldUseMediaUpload = hasVideoUrl && hasImageUrl;
-                    
-                    return (
+            {/* Sortable section accordion items */}
+            {hasDnd ? (
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={() => {
+                        // Collapse any expanded section before dragging
+                        setOpenSection("");
+                        onDraggingChange?.(true);
+                    }}
+                    onDragEnd={(event: DragEndEvent) => {
+                        onDraggingChange?.(false);
+                        const { active, over } = event;
+                        if (over && active.id !== over.id) {
+                            const oldIndex = orderedSectionKeys.indexOf(active.id as string);
+                            const newIndex = orderedSectionKeys.indexOf(over.id as string);
+                            onSectionOrderChange!(arrayMove(orderedSectionKeys, oldIndex, newIndex));
+                        }
+                    }}
+                    onDragCancel={() => {
+                        onDraggingChange?.(false);
+                    }}
+                >
+                    <SortableContext items={orderedSectionKeys} strategy={verticalListSortingStrategy}>
+                        <Accordion type="single" collapsible className="w-full space-y-2" value={openSection} onValueChange={setOpenSection}>
+                            {orderedSectionKeys.map((key, index) => (
+                                <SortableAccordionItem key={key} id={key} index={index}>
+                                    {renderSectionItem(key)}
+                                </SortableAccordionItem>
+                            ))}
+                        </Accordion>
+                    </SortableContext>
+                </DndContext>
+            ) : (
+                <Accordion type="single" collapsible className="w-full space-y-4">
+                    {orderedSectionKeys.map((key) => (
                         <AccordionItem value={key} key={key} className="border rounded-lg bg-white shadow-sm px-4">
                             <AccordionTrigger className="hover:no-underline py-4">
                                 <span className="text-lg font-semibold text-gray-900">{toTitleCase(key)}</span>
                             </AccordionTrigger>
-                            <AccordionContent className="pt-2 pb-6">
-                                <div className="space-y-6">
-                                    {/* Render children of the section */}
-                                    {Object.entries(sectionShape).map(([childKey, childType]) => {
-                                        // Skip videoUrl and imageUrl if we're using MediaUpload
-                                        if (shouldUseMediaUpload && (childKey === 'videoUrl' || childKey === 'imageUrl')) {
-                                            // Only render MediaUpload once for videoUrl
-                                            if (childKey === 'videoUrl') {
-                                                const videoFieldPath = `${key}.videoUrl` as FieldPath<T>;
-                                                const imageFieldPath = `${key}.imageUrl` as FieldPath<T>;
-                                                
-                                                return (
-                                                    <div key={`${key}-media`}>
-                                                        <FormLabel className="text-base font-medium">Media (Video or Image)</FormLabel>
-                                                        <MediaUpload
-                                                            videoValue={form.watch(videoFieldPath)}
-                                                            imageValue={form.watch(imageFieldPath)}
-                                                            onVideoChange={(url) => form.setValue(videoFieldPath, url as any)}
-                                                            onImageChange={(url) => form.setValue(imageFieldPath, url as any)}
-                                                            onFileSelect={(file, type) => {
-                                                                if (file) {
-                                                                    const targetPath = type === 'video' ? videoFieldPath : imageFieldPath;
-                                                                    onFileSelect?.(targetPath, file);
-                                                                }
-                                                            }}
-                                                            label="Upload Video or Image"
-                                                        />
-                                                    </div>
-                                                );
-                                            }
-                                            // Skip imageUrl since we already rendered MediaUpload for videoUrl
-                                            return null;
-                                        }
-                                        
-                                        return renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech);
-                                    })}
-                                </div>
-                            </AccordionContent>
+                            {renderSectionItem(key)}
                         </AccordionItem>
-                    );
-                }
-
-                return (
-                    <div key={key} className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-                        {renderField(key, zodType, form, basePath, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech)}
-                    </div>
-                );
-            })}
-        </Accordion>
+                    ))}
+                </Accordion>
+            )}
+        </div>
     );
 }
+

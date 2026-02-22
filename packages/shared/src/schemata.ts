@@ -172,6 +172,35 @@ export const CadFileSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Section Ordering
+// ---------------------------------------------------------------------------
+export const SECTION_KEYS = [
+  "satDroneSection",
+  "locationSection",
+  "approachRoadSection",
+  "cadFileSection",
+  "internalWideShotSection",
+  "internalDockSection",
+  "internalUtilitiesSection",
+  "dockingSection",
+  "complianceSection",
+] as const;
+
+export type SectionKey = (typeof SECTION_KEYS)[number];
+
+export const SECTION_DISPLAY_NAMES: Record<SectionKey, string> = {
+  satDroneSection: "Satellite & Drone",
+  locationSection: "Location Highlights",
+  approachRoadSection: "Approach Road",
+  cadFileSection: "CAD File / Architecture",
+  internalWideShotSection: "Internal Wide Shot",
+  internalDockSection: "Internal Dock",
+  internalUtilitiesSection: "Internal Utilities",
+  dockingSection: "Docking & Parking",
+  complianceSection: "Compliances",
+};
+
+// ---------------------------------------------------------------------------
 // MASTER COMPOSITION PROPS
 // ---------------------------------------------------------------------------
 export const CompositionProps = z.object({
@@ -179,6 +208,9 @@ export const CompositionProps = z.object({
     clientName: z.string(),
     projectLocationName: z.string(),
   }),
+
+  // Section display order (Intro/Outro are always first/last)
+  sectionOrder: z.array(z.string()).default([...SECTION_KEYS]),
 
   // The Video Sections
   satDroneSection: SatDroneSchema,
@@ -193,3 +225,4 @@ export const CompositionProps = z.object({
 });
 
 export type WarehouseVideoProps = z.infer<typeof CompositionProps>;
+
