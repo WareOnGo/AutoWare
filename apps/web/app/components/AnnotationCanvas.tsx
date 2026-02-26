@@ -42,10 +42,24 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
 
     const [tool, setTool] = useState<Tool>("pen");
     const [color, setColor] = useState(PRESET_COLORS[0]);
-    const [layers, setLayers] = useState<AnnotationLayer[]>(existingLayers);
+
+    // Initialize with a default layer if none exist, so the user can draw immediately
+    const initialLayers = React.useMemo<AnnotationLayer[]>(() => {
+        if (existingLayers.length > 0) return existingLayers;
+        return [{
+            id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            name: "Layer 1",
+            drawingDataUrl: "",
+            color: PRESET_COLORS[0],
+            order: 0,
+            audio: { durationInSeconds: 3, transcript: "" },
+        }];
+    }, [existingLayers]);
+
+    const [layers, setLayers] = useState<AnnotationLayer[]>(initialLayers);
     const [canvasReady, setCanvasReady] = useState(false);
     const [hasImage, setHasImage] = useState(false);
-    const [editingLayerId, setEditingLayerId] = useState<string | null>(null);
+    const [editingLayerId, setEditingLayerId] = useState<string | null>(initialLayers[0]?.id || null);
 
     // Refs for drawing (avoids stale closures)
     const isDrawingRef = useRef(false);
@@ -207,8 +221,25 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     useEffect(() => {
         const handleResize = () => fitToContainer(imgRef.current ? imgRef.current.naturalWidth / imgRef.current.naturalHeight : 16 / 9);
         window.addEventListener("resize", handleResize);
+
+        // Auto-load the first layer's canvas data on mount if it exists
+        if (initialLayers.length > 0) {
+            // Because loadLayerToCanvas accesses refs, wait for canvas to be ready
+            // actually we do it in a setTimeout to let the DOM paint the canvas
+            setTimeout(() => {
+                if (canvasRef.current && initialLayers[0].drawingDataUrl) {
+                    const ctx = canvasRef.current.getContext("2d");
+                    if (ctx) {
+                        const img = new Image();
+                        img.onload = () => ctx.drawImage(img, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
+                        img.src = initialLayers[0].drawingDataUrl;
+                    }
+                }
+            }, 100);
+        }
+
         return () => window.removeEventListener("resize", handleResize);
-    }, [fitToContainer]);
+    }, [fitToContainer, initialLayers]);
 
     // ─── Mouse position ──────────────────────────────────────────────────────
     const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -390,9 +421,6 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
 
     // ─── Done ────────────────────────────────────────────────────────────────
     const handleDone = () => {
-        // Because setLayers is async, calling autoSaveCurrentLayer() right before
-        // reading `layers` will read the stale old array.
-        // We need to manually construct the final array here.
         let finalLayers = [...layers];
 
         if (editingLayerId && canvasHasContent()) {
@@ -404,7 +432,10 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
             );
         }
 
-        const validLayers = finalLayers.filter((l) => l.drawingDataUrl && l.drawingDataUrl.length > 0);
+        // We don't filter out layers without drawingDataUrl anymore!
+        // This allows users to create empty layers just for audio blocks.
+        // If a layer exists in state, it is valid.
+        const validLayers = finalLayers.filter((l) => l.name);
         onSave(validLayers);
         onClose();
     };
