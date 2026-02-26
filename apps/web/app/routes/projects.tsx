@@ -7,7 +7,7 @@ import { ErrorComp } from "~/components/Error";
 import { PageErrorBoundary } from "~/components/PageErrorBoundary";
 import { getAllCompositions, createComposition, type VideoComposition } from "~/lib/api";
 import { useToast } from "~/lib/toast-context";
-import type { WarehouseVideoProps } from "@repo/shared";
+import { SECTION_KEYS, type WarehouseVideoProps } from "@repo/shared";
 
 function ProjectsPageContent() {
   const navigate = useNavigate();
@@ -130,6 +130,11 @@ function ProjectsPageContent() {
             transcript: "",
           },
         },
+        cadFileSection: {
+          imageUrl: "",
+          annotations: [],
+        },
+        sectionOrder: [...SECTION_KEYS],
       };
 
       const newProject = await createComposition(defaultComposition);

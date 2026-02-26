@@ -159,16 +159,29 @@ export const ComplianceSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// Annotation Layer (for CAD drawing overlays)
+// ---------------------------------------------------------------------------
+export const AnnotationLayerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  drawingDataUrl: z.string(), // PNG data URL of the drawn layer
+  color: z.string().default("#ff0000"), // primary color used
+  order: z.number().int().default(0),
+  // Each annotation layer has its own audio (transcript + TTS)
+  audio: AudioMetaSchema,
+});
+
+export type AnnotationLayer = z.infer<typeof AnnotationLayerSchema>;
+
+// ---------------------------------------------------------------------------
 // Section 6: CAD File (Architecture Diagram)
 // ---------------------------------------------------------------------------
 export const CadFileSchema = z.object({
   imageUrl: MediaUrl.optional(),
 
-  // ✅ Audio for this section
-  audio: AudioMetaSchema,
-
-  // Optional section duration override (must be >= audio duration + 1s)
-  sectionDurationInSeconds: z.number().positive().optional(),
+  // Annotation layers drawn over the CAD image
+  // Each layer carries its own audio; section duration = sum of layer durations
+  annotations: z.array(AnnotationLayerSchema).optional(),
 });
 
 // ---------------------------------------------------------------------------

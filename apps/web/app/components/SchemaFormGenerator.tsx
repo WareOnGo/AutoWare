@@ -28,6 +28,9 @@ import { ImageUpload } from "./ImageUpload";
 import { MediaUpload } from "./MediaUpload";
 import { GoogleMapsInput } from "./GoogleMapsInput";
 import { TranscriptInput } from "./TranscriptInput";
+import { AnnotationCanvas } from "./AnnotationCanvas";
+import { AnnotationLayerList } from "./AnnotationLayerList";
+import type { AnnotationLayer } from "@repo/shared";
 import {
     DndContext,
     closestCenter,
@@ -86,13 +89,19 @@ function SortableAccordionItem({ id, index, children }: { id: string; index: num
             <AccordionTrigger className="hover:no-underline py-4">
                 <div className="flex items-center gap-3 w-full">
                     {/* Drag handle */}
-                    <button
-                        type="button"
+                    <div
                         {...attributes}
                         {...listeners}
+                        role="button"
+                        tabIndex={0}
                         className="flex-shrink-0 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                         title="Drag to reorder"
                         onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                                e.stopPropagation();
+                            }
+                        }}
                     >
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <circle cx="5" cy="3" r="1.5" />
@@ -102,7 +111,7 @@ function SortableAccordionItem({ id, index, children }: { id: string; index: num
                             <circle cx="5" cy="13" r="1.5" />
                             <circle cx="11" cy="13" r="1.5" />
                         </svg>
-                    </button>
+                    </div>
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-xs font-bold flex items-center justify-center">
                         {index + 1}
                     </span>
@@ -192,6 +201,11 @@ function renderField<T extends FieldValues>(
 
     // Skip satelliteImageUrl - it's automatically generated from Google Maps URL
     if (key === "satelliteImageUrl") {
+        return null;
+    }
+
+    // Skip annotations - handled by custom AnnotationLayerList component
+    if (key === "annotations") {
         return null;
     }
 
@@ -618,6 +632,9 @@ export function SchemaFormGenerator<T extends FieldValues>({
     // Determine default open value
     const defaultOpenValue = nonSectionEntries.length > 0 ? nonSectionEntries[0][0] : orderedSectionKeys[0];
 
+    // State for annotation canvas modal
+    const [showAnnotationCanvas, setShowAnnotationCanvas] = React.useState(false);
+
     const renderSectionItem = (key: string) => {
         const zodType = sectionMap.get(key) || shape[key];
         if (!zodType) return null;
@@ -625,6 +642,9 @@ export function SchemaFormGenerator<T extends FieldValues>({
         const hasVideoUrl = sectionShape.videoUrl !== undefined;
         const hasImageUrl = sectionShape.imageUrl !== undefined;
         const shouldUseMediaUpload = hasVideoUrl && hasImageUrl;
+
+        // Check if this is the CAD section for annotation UI
+        const isCadSection = key === "cadFileSection";
 
         return (
             <AccordionContent className="pt-2 pb-6">
@@ -657,6 +677,53 @@ export function SchemaFormGenerator<T extends FieldValues>({
                         }
                         return renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech);
                     })}
+
+                    {/* ── Annotation UI for CAD section ── */}
+                    {isCadSection && (() => {
+                        const imageUrl = form.watch(`${key}.imageUrl` as FieldPath<T>) as string;
+                        const annotations = (form.watch(`${key}.annotations` as FieldPath<T>) || []) as AnnotationLayer[];
+
+                        return (
+                            <div className="space-y-4 pt-2">
+                                {/* Divider */}
+                                <div className="border-t border-gray-200 pt-4">
+                                    <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3">Map Annotations</h4>
+                                </div>
+
+                                {/* Annotate Map button */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAnnotationCanvas(true)}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md"
+                                >
+                                    <span className="text-lg">🖊️</span>
+                                    Annotate Map
+                                </button>
+
+                                {/* Layer list */}
+                                <AnnotationLayerList
+                                    layers={annotations}
+                                    onChange={(newLayers) => {
+                                        form.setValue(`${key}.annotations` as any, newLayers);
+                                    }}
+                                    onGenerateSpeech={onGenerateSpeech}
+                                    compositionId={compositionId}
+                                />
+
+                                {/* Canvas modal */}
+                                {showAnnotationCanvas && (
+                                    <AnnotationCanvas
+                                        imageUrl={imageUrl || ""}
+                                        existingLayers={annotations}
+                                        onSave={(newLayers) => {
+                                            form.setValue(`${key}.annotations` as any, newLayers);
+                                        }}
+                                        onClose={() => setShowAnnotationCanvas(false)}
+                                    />
+                                )}
+                            </div>
+                        );
+                    })()}
                 </div>
             </AccordionContent>
         );

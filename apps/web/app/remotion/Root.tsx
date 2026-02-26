@@ -6,7 +6,7 @@ import {
   COMPOSITION_WIDTH,
 } from "./constants.mjs";
 import { Main } from "./components/Main";
-import { WarehouseVideoProps, CompositionProps } from "@repo/shared";
+import { WarehouseVideoProps, CompositionProps, SECTION_KEYS } from "@repo/shared";
 import { loadFont } from "@remotion/google-fonts/Inter";
 
 const { fontFamily } = loadFont();
@@ -14,6 +14,7 @@ const { fontFamily } = loadFont();
 // Helper function to calculate total video duration
 function calculateTotalDuration(props: WarehouseVideoProps): number {
   const fps = COMPOSITION_FPS;
+  const TRANSITION_DURATION = 10; // Must match Main.tsx
 
   const calculateSectionDuration = (audioDuration: number, userSetDuration?: number) => {
     if (!audioDuration || audioDuration <= 0) {
@@ -26,49 +27,44 @@ function calculateTotalDuration(props: WarehouseVideoProps): number {
   const introDuration = 5 * fps;
   const outroDuration = 5 * fps;
 
-  const satDroneDuration = calculateSectionDuration(
-    props.satDroneSection.audio.durationInSeconds || 0,
-    props.satDroneSection.sectionDurationInSeconds
-  ) * fps;
+  // Collect non-zero section durations
+  const sectionDurations: number[] = [];
 
-  const locationDuration = calculateSectionDuration(
-    props.locationSection.audio.durationInSeconds || 0,
-    props.locationSection.sectionDurationInSeconds
-  ) * fps;
+  const addSection = (audioDuration: number, userSetDuration?: number) => {
+    const dur = calculateSectionDuration(audioDuration, userSetDuration) * fps;
+    if (dur > 0) sectionDurations.push(dur);
+  };
 
-  const approachRoadDuration = calculateSectionDuration(
-    props.approachRoadSection.audio.durationInSeconds || 0,
-    props.approachRoadSection.sectionDurationInSeconds
-  ) * fps;
+  addSection(props.satDroneSection.audio.durationInSeconds || 0, props.satDroneSection.sectionDurationInSeconds);
+  addSection(props.locationSection.audio.durationInSeconds || 0, props.locationSection.sectionDurationInSeconds);
+  addSection(props.approachRoadSection.audio.durationInSeconds || 0, props.approachRoadSection.sectionDurationInSeconds);
+  addSection(props.internalWideShotSection.audio.durationInSeconds || 0, props.internalWideShotSection.sectionDurationInSeconds);
+  addSection(props.internalDockSection.audio.durationInSeconds || 0, props.internalDockSection.sectionDurationInSeconds);
+  addSection(props.internalUtilitiesSection.audio.durationInSeconds || 0, props.internalUtilitiesSection.sectionDurationInSeconds);
+  addSection(props.dockingSection.audio.durationInSeconds || 0, props.dockingSection.sectionDurationInSeconds);
+  addSection(props.complianceSection.audio.durationInSeconds || 0, props.complianceSection.sectionDurationInSeconds);
 
-  const internalWideShotDuration = calculateSectionDuration(
-    props.internalWideShotSection.audio.durationInSeconds || 0,
-    props.internalWideShotSection.sectionDurationInSeconds
-  ) * fps;
+  // CAD section: duration is the sum of annotation layer padded durations
+  const cadAnnotations = props.cadFileSection?.annotations || [];
+  const cadTotalPaddedDuration = cadAnnotations.reduce(
+    (sum, layer, index) => {
+      const layerDur = (layer.audio?.durationInSeconds || 0) + 1.0;
+      return sum + layerDur - (index > 0 ? 0.5 : 0);
+    },
+    0
+  );
+  if (cadTotalPaddedDuration > 0) {
+    const cadDur = calculateSectionDuration(Math.max(cadTotalPaddedDuration - 1.0, 0)) * fps;
+    if (cadDur > 0) sectionDurations.push(cadDur);
+  }
 
-  const internalDockDuration = calculateSectionDuration(
-    props.internalDockSection.audio.durationInSeconds || 0,
-    props.internalDockSection.sectionDurationInSeconds
-  ) * fps;
+  const totalSectionDuration = sectionDurations.reduce((a, b) => a + b, 0);
 
-  const internalUtilitiesDuration = calculateSectionDuration(
-    props.internalUtilitiesSection.audio.durationInSeconds || 0,
-    props.internalUtilitiesSection.sectionDurationInSeconds
-  ) * fps;
+  // Subtract transition overlaps (intro→first, between sections, last→outro)
+  const numTransitions = sectionDurations.length > 0 ? sectionDurations.length + 1 : 0;
+  const transitionOverlap = numTransitions * TRANSITION_DURATION;
 
-  const dockingDuration = calculateSectionDuration(
-    props.dockingSection.audio.durationInSeconds || 0,
-    props.dockingSection.sectionDurationInSeconds
-  ) * fps;
-
-  const complianceDuration = calculateSectionDuration(
-    props.complianceSection.audio.durationInSeconds || 0,
-    props.complianceSection.sectionDurationInSeconds
-  ) * fps;
-
-  return introDuration + satDroneDuration + locationDuration + approachRoadDuration +
-    internalWideShotDuration + internalDockDuration + internalUtilitiesDuration +
-    dockingDuration + complianceDuration + outroDuration;
+  return introDuration + totalSectionDuration + outroDuration - transitionOverlap;
 }
 
 // Placeholder data using the master schema from shared package
@@ -180,6 +176,14 @@ const defaultWarehouseProps: WarehouseVideoProps = {
       transcript: "Fully compliant with all safety regulations. Features include fire hydrants, automated sprinkler systems, advanced alarm systems, dedicated pump room, and smoke detection throughout the facility.",
     },
   },
+
+  // Section 6: CAD File
+  cadFileSection: {
+    imageUrl: "",
+    annotations: [],
+  },
+
+  sectionOrder: [...SECTION_KEYS],
 };
 
 export const RemotionRoot = () => {

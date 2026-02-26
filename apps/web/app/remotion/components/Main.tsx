@@ -127,6 +127,22 @@ function renderSection(
 
 // Get audio duration and user-set duration for any section key
 function getSectionAudioInfo(key: SectionKey, props: WarehouseVideoProps) {
+  // CAD section: duration is the sum of its annotation layers' audio durations
+  if (key === "cadFileSection") {
+    const annotations = props.cadFileSection.annotations || [];
+    const totalPaddedDuration = annotations.reduce(
+      (sum, layer, index) => {
+        const layerDur = (layer.audio?.durationInSeconds || 0) + 1.0;
+        return sum + layerDur - (index > 0 ? 0.5 : 0);
+      },
+      0
+    );
+    return {
+      audioDuration: Math.max(totalPaddedDuration - 1.0, 0),
+      userSetDuration: undefined, // no override for CAD — always sum of children
+    };
+  }
+
   const section = props[key] as any;
   return {
     audioDuration: section?.audio?.durationInSeconds || 0,
@@ -169,6 +185,8 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
   for (const key of sectionOrder) {
     const calc = sectionCalcs.get(key)!;
     const durationInFrames = calc.actualDuration * fps;
+    // Skip sections with zero duration (e.g. CAD section with no annotations)
+    if (durationInFrames <= 0) continue;
     sectionTimings.push({
       key,
       start: currentStart,
@@ -181,8 +199,6 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
   const outroStart = currentStart;
   const totalDuration = outroStart + outroDuration;
 
-  console.log("Total video duration:", totalDuration, "frames (", totalDuration / fps, "seconds)");
-
   return (
     <>
       {/* Intro */}
@@ -194,7 +210,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
 
       {/* Dynamic sections in user-defined order */}
       {sectionTimings.map(({ key, start, duration, startPadding }) => (
-        <Sequence key={key} from={start} durationInFrames={duration}>
+        <Sequence key={key} from={start} durationInFrames={Math.max(1, Math.round(duration))}>
           <TransitionWrapper transitionDuration={TRANSITION_DURATION} sequenceDuration={duration}>
             {renderSection(key, props, startPadding)}
           </TransitionWrapper>

@@ -132,10 +132,7 @@ const defaultValues: WarehouseVideoProps = {
     },
     cadFileSection: {
         imageUrl: "",
-        audio: {
-            durationInSeconds: 5,
-            transcript: "Here is the architectural layout and CAD design of the facility.",
-        },
+        annotations: [],
     },
     sectionOrder: [...SECTION_KEYS],
 };
@@ -189,6 +186,27 @@ function EditorContent() {
         }
     }, [triggerRender, renderMedia]);
 
+    // Auto-create a blank Layer 1 when a CAD image is uploaded and annotations are empty
+    const cadImageUrl = useWatch({ control: form.control, name: "cadFileSection.imageUrl" });
+    const cadAnnotations = useWatch({ control: form.control, name: "cadFileSection.annotations" });
+    useEffect(() => {
+        if (cadImageUrl && cadImageUrl.trim() !== "" && (!cadAnnotations || cadAnnotations.length === 0)) {
+            form.setValue("cadFileSection.annotations", [
+                {
+                    id: `layer-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: "Layer 1",
+                    drawingDataUrl: "",
+                    color: "#ff0000",
+                    order: 0,
+                    audio: {
+                        durationInSeconds: 3,
+                        transcript: "",
+                    },
+                },
+            ]);
+        }
+    }, [cadImageUrl]);
+
     // Watch audio durations to trigger validation of section durations
     const satDroneAudioDuration = useWatch({
         control: form.control,
@@ -218,11 +236,6 @@ function EditorContent() {
         control: form.control,
         name: "complianceSection.audio.durationInSeconds",
     });
-    const cadFileAudioDuration = useWatch({
-        control: form.control,
-        name: "cadFileSection.audio.durationInSeconds",
-    });
-
     // Trigger validation when audio durations change
     useEffect(() => {
         // Revalidate section duration fields when audio duration changes
@@ -234,7 +247,6 @@ function EditorContent() {
             "internalUtilitiesSection.sectionDurationInSeconds",
             "dockingSection.sectionDurationInSeconds",
             "complianceSection.sectionDurationInSeconds",
-            "cadFileSection.sectionDurationInSeconds",
         ] as const;
 
         fields.forEach(field => {
@@ -244,7 +256,7 @@ function EditorContent() {
             }
         });
     }, [satDroneAudioDuration, locationAudioDuration, internalWideShotAudioDuration,
-        internalDockAudioDuration, internalUtilitiesAudioDuration, dockingAudioDuration, complianceAudioDuration, cadFileAudioDuration, form]);
+        internalDockAudioDuration, internalUtilitiesAudioDuration, dockingAudioDuration, complianceAudioDuration, form]);
 
     // Load project data on mount
     useEffect(() => {
@@ -361,13 +373,36 @@ function EditorContent() {
                         ...compositionData,
                         cadFileSection: {
                             imageUrl: "",
-                            audio: {
-                                audioUrl: "",
-                                durationInSeconds: 5,
-                                transcript: "",
-                            },
+                            annotations: [],
                         },
                     };
+                } else {
+                    // Migrate old cadFileSection: strip top-level audio & sectionDurationInSeconds
+                    const cad = compositionData.cadFileSection as any;
+                    if (cad.audio) delete cad.audio;
+                    if (cad.sectionDurationInSeconds) delete cad.sectionDurationInSeconds;
+
+                    // Migrate old annotation layers that used durationInSeconds instead of audio
+                    if (Array.isArray(cad.annotations)) {
+                        cad.annotations = cad.annotations.map((layer: any) => {
+                            if (!layer.audio) {
+                                const oldDuration = layer.durationInSeconds || 3;
+                                return {
+                                    ...layer,
+                                    audio: {
+                                        durationInSeconds: oldDuration,
+                                        transcript: "",
+                                    },
+                                };
+                            }
+                            return layer;
+                        });
+                        // Clean up old durationInSeconds field
+                        cad.annotations = cad.annotations.map((layer: any) => {
+                            const { durationInSeconds, ...rest } = layer;
+                            return rest;
+                        });
+                    }
                 }
 
                 // Ensure sectionOrder exists (for old projects)
@@ -651,15 +686,16 @@ function EditorContent() {
     // Calculate dynamic video duration based on audio durations with padding
     const calculateDuration = (props: WarehouseVideoProps): number => {
         const fps = COMPOSITION_FPS;
+        const TRANSITION_DURATION = 10; // Must match Main.tsx (0.33s overlap between sections)
         const introDuration = 5 * fps;
         const outroDuration = 5 * fps;
 
-        // Sum up all section durations dynamically
+        // Collect non-zero section durations
         const sectionKeys: string[] = ['satDroneSection', 'locationSection', 'approachRoadSection',
-            'cadFileSection', 'internalWideShotSection', 'internalDockSection',
+            'internalWideShotSection', 'internalDockSection',
             'internalUtilitiesSection', 'dockingSection', 'complianceSection'];
 
-        let totalSectionDuration = 0;
+        const sectionDurations: number[] = [];
         for (const key of sectionKeys) {
             const section = (props as any)[key];
             if (section?.audio) {
@@ -667,11 +703,36 @@ function EditorContent() {
                     section.audio.durationInSeconds || 0,
                     section.sectionDurationInSeconds
                 );
-                totalSectionDuration += calc.actualDuration * fps;
+                const dur = calc.actualDuration * fps;
+                if (dur > 0) sectionDurations.push(dur);
             }
         }
 
-        return introDuration + totalSectionDuration + outroDuration;
+        // CAD section: duration = sum of annotation layer padded durations
+        const cadAnnotations = props.cadFileSection?.annotations || [];
+        const cadTotalPaddedDuration = cadAnnotations.reduce(
+            (sum, layer, index) => {
+                const layerDur = (layer.audio?.durationInSeconds || 0) + 1.0;
+                return sum + layerDur - (index > 0 ? 0.5 : 0);
+            }, 0
+        );
+        if (cadTotalPaddedDuration > 0) {
+            const cadCalc = calculateSectionDuration(Math.max(cadTotalPaddedDuration - 1.0, 0));
+            const cadDur = cadCalc.actualDuration * fps;
+            if (cadDur > 0) sectionDurations.push(cadDur);
+        }
+
+        // Total section frames
+        const totalSectionDuration = sectionDurations.reduce((a, b) => a + b, 0);
+
+        // Subtract transition overlaps: one between each pair of adjacent items
+        // (intro→section, section→section, section→outro)
+        const numTransitions = sectionDurations.length > 0
+            ? sectionDurations.length + 1  // intro→first + between sections + last→outro
+            : 0;
+        const transitionOverlap = numTransitions * TRANSITION_DURATION;
+
+        return introDuration + totalSectionDuration + outroDuration - transitionOverlap;
     };
 
     const videoDuration = calculateDuration(playerInputProps);
