@@ -49,14 +49,9 @@ const LayerOverlay: React.FC<{ layer: AnnotationLayer; durationFrames: number; f
                 ) : null}
             </div>
 
-            {/* Per-layer audio — wrapped in a Sequence to handle relative timing internally */}
+            {/* Per-layer audio — plays immediately relative to the sequence start */}
             {layer.audio.audioUrl && (
-                <Sequence
-                    from={fadeFrames}
-                    durationInFrames={Math.max(1, durationFrames - 2 * fadeFrames)}
-                >
-                    <Audio src={layer.audio.audioUrl} volume={1} />
-                </Sequence>
+                <Audio src={layer.audio.audioUrl} volume={1} />
             )}
 
             {/* Per-layer subtitle */}

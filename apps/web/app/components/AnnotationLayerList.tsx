@@ -1,5 +1,5 @@
 import * as React from "react";
-import { GripVertical, Trash2, Mic, Loader2 } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import type { AnnotationLayer } from "@repo/shared";
 import {
     DndContext,
@@ -19,6 +19,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import { TranscriptInput } from "./TranscriptInput";
+
 // ─── Sortable Layer Item ─────────────────────────────────────────────────────
 function SortableLayerItem({
     layer,
@@ -27,13 +29,17 @@ function SortableLayerItem({
     onRemove,
     onGenerateSpeech,
     isGenerating,
+    layerIndex,
+    compositionId,
 }: {
     layer: AnnotationLayer;
     onTranscriptChange: (id: string, transcript: string) => void;
     onDurationChange: (id: string, duration: number) => void;
     onRemove: (id: string) => void;
-    onGenerateSpeech?: (layerId: string) => void;
+    onGenerateSpeech?: (transcript: string, fieldPath: string) => Promise<void>;
     isGenerating?: boolean;
+    layerIndex: number;
+    compositionId?: string;
 }) {
     const {
         attributes,
@@ -121,42 +127,18 @@ function SortableLayerItem({
                 </button>
             </div>
 
-            {/* Transcript + Generate Speech row */}
-            <div className="mt-2 space-y-2">
-                <textarea
+            {/* Transcript + Generate Speech row via TranscriptInput */}
+            <div className="mt-2">
+                <TranscriptInput
                     value={layer.audio?.transcript || ""}
-                    onChange={(e) => onTranscriptChange(layer.id, e.target.value)}
-                    placeholder="Enter transcript for this layer..."
-                    rows={2}
-                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 resize-none bg-gray-50 placeholder-gray-400"
+                    onChange={(value) => onTranscriptChange(layer.id, value)}
+                    audioUrl={layer.audio?.audioUrl}
+                    audioDuration={layer.audio?.durationInSeconds}
+                    onGenerateSpeech={onGenerateSpeech}
+                    fieldPath={`cadFileSection.annotations.${layerIndex}.audio.transcript`}
+                    compositionId={compositionId}
+                    disabled={isGenerating}
                 />
-                <div className="flex items-center justify-between gap-2">
-                    <button
-                        type="button"
-                        disabled={!layer.audio?.transcript?.trim() || isGenerating}
-                        onClick={() => onGenerateSpeech?.(layer.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border border-indigo-200"
-                    >
-                        {isGenerating ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                            <Mic className="w-3 h-3" />
-                        )}
-                        {isGenerating ? "Generating..." : "Generate Speech"}
-                    </button>
-                    <div className="flex items-center gap-2 text-xs text-gray-500 font-medium whitespace-nowrap">
-                        <label htmlFor={`duration-${layer.id}`}>Duration (s)</label>
-                        <input
-                            id={`duration-${layer.id}`}
-                            type="number"
-                            min="0.1"
-                            step="0.1"
-                            value={layer.audio?.durationInSeconds || 0}
-                            onChange={(e) => onDurationChange(layer.id, parseFloat(e.target.value) || 0)}
-                            className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 font-normal shadow-sm bg-white"
-                        />
-                    </div>
-                </div>
             </div>
         </div>
     );
@@ -168,7 +150,6 @@ interface AnnotationLayerListProps {
     onChange: (layers: AnnotationLayer[]) => void;
     onGenerateSpeech?: (transcript: string, fieldPath: string) => Promise<void>;
     compositionId?: string;
-    generatingLayerId?: string;
 }
 
 export const AnnotationLayerList: React.FC<AnnotationLayerListProps> = ({
@@ -176,7 +157,6 @@ export const AnnotationLayerList: React.FC<AnnotationLayerListProps> = ({
     onChange,
     onGenerateSpeech,
     compositionId,
-    generatingLayerId,
 }) => {
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -221,19 +201,6 @@ export const AnnotationLayerList: React.FC<AnnotationLayerListProps> = ({
         );
     };
 
-    const handleGenerateSpeech = async (layerId: string) => {
-        const layer = layers.find((l) => l.id === layerId);
-        if (!layer?.audio?.transcript || !onGenerateSpeech) return;
-
-        // Find the index of this layer in the annotations array
-        const layerIndex = layers.findIndex((l) => l.id === layerId);
-        if (layerIndex === -1) return;
-
-        // Generate speech via the parent callback — use the field path for this specific layer's transcript
-        const fieldPath = `cadFileSection.annotations.${layerIndex}.audio.transcript`;
-        await onGenerateSpeech(layer.audio.transcript, fieldPath);
-    };
-
     if (layers.length === 0) {
         return (
             <div className="text-center py-4 text-xs text-gray-400">
@@ -263,15 +230,16 @@ export const AnnotationLayerList: React.FC<AnnotationLayerListProps> = ({
                     items={layers.map((l) => l.id)}
                     strategy={verticalListSortingStrategy}
                 >
-                    {layers.map((layer) => (
+                    {layers.map((layer, index) => (
                         <SortableLayerItem
                             key={layer.id}
                             layer={layer}
+                            layerIndex={index}
+                            compositionId={compositionId}
                             onTranscriptChange={handleTranscriptChange}
                             onDurationChange={handleDurationChange}
                             onRemove={handleRemove}
-                            onGenerateSpeech={handleGenerateSpeech}
-                            isGenerating={generatingLayerId === layer.id}
+                            onGenerateSpeech={onGenerateSpeech}
                         />
                     ))}
                 </SortableContext>
