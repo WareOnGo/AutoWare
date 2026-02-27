@@ -45,6 +45,47 @@ export interface BatchPresignedUrlResponse {
   }>;
 }
 
+// Warehouse API types
+export interface WarehouseResponse {
+  id: number;
+  warehouseOwnerType: string | null;
+  warehouseType: string | null;
+  address: string | null;
+  googleLocation: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  zone: string | null;
+  totalSpaceSqft: number | null;
+  offeredSpaceSqft: number | null;
+  numberOfDocks: number | null;
+  clearHeightFt: number | null;
+  compliances: any | null;
+  otherSpecifications: any | null;
+  ratePerSqft: number | null;
+  availability: string | null;
+  uploadedBy: string | null;
+  isBroker: boolean | null;
+  photos: any | null;
+  createdAt: Date;
+  status_updated_at: Date | null;
+  visibility: string | null;
+  WarehouseData: {
+    id: number;
+    latitude: number | null;
+    longitude: number | null;
+    fireNocAvailable: boolean | null;
+    fireSafetyMeasures: any | null;
+    landType: string | null;
+    approachRoadWidth: number | null;
+    dimensions: any | null;
+    parkingDockingSpace: string | null;
+    pollutionZone: string | null;
+    powerKva: number | null;
+    vaastuCompliance: boolean | null;
+  } | null;
+}
+
 const makeRequest = async <Res>(
   endpoint: string,
   body: unknown,
@@ -360,4 +401,14 @@ export const generateAudioFromText = async (
 
     throw error;
   }
+};
+
+/**
+ * Fetch warehouse details by ID
+ * @param id - The warehouse ID (integer)
+ * @returns WarehouseResponse with warehouse details and nested WarehouseData
+ * @throws Error if warehouse not found (404), invalid ID (400), server error (500), or network error
+ */
+export const getWarehouseById = async (id: number): Promise<WarehouseResponse> => {
+  return fetchRequest<WarehouseResponse>(`/api/warehouse/${id}`);
 };

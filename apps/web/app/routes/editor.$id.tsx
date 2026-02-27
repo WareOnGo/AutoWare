@@ -18,6 +18,7 @@ import { Button } from "~/components/Button";
 import { SchemaFormGenerator } from "~/components/SchemaFormGenerator";
 import { PageErrorBoundary } from "~/components/PageErrorBoundary";
 import { LoadingOverlay } from "~/components/LoadingOverlay";
+import { WarehouseDataFetcher } from "~/components/WarehouseDataFetcher";
 import { getComposition, updateComposition, generateAudioFromText } from "~/lib/api";
 import { uploadBatch, UploadRequest } from "~/lib/upload";
 import { useToast } from "~/lib/toast-context";
@@ -512,6 +513,75 @@ function EditorContent() {
         }
     };
 
+    // Handle warehouse data fetched callback
+    const handleWarehouseDataFetched = (warehouseData: any) => {
+        console.log("Warehouse data received:", warehouseData);
+
+        // Populate location name with "City, State"
+        const { city, state, googleLocation } = warehouseData;
+        if (city && state) {
+            const locationName = `${city}, ${state}`;
+            form.setValue('intro.projectLocationName', locationName);
+            console.log(`Updated location name: ${locationName}`);
+        }
+
+        // If Google Maps URL is available, use it to populate the location field
+        if (googleLocation && googleLocation.trim() !== '') {
+            // Extract lat/lng from Google Maps URL
+            const extractLatLngFromMapsUrl = (url: string): { lat: number; lng: number } | null => {
+                if (!url) return null;
+                
+                // Format 1: https://www.google.com/maps/@28.4744,77.5040,15z
+                const atFormat = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+                if (atFormat) {
+                    return {
+                        lat: parseFloat(atFormat[1]),
+                        lng: parseFloat(atFormat[2]),
+                    };
+                }
+                
+                // Format 2: https://www.google.com/maps/place/.../@28.4744,77.5040
+                const placeFormat = url.match(/place\/[^\/]+\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
+                if (placeFormat) {
+                    return {
+                        lat: parseFloat(placeFormat[1]),
+                        lng: parseFloat(placeFormat[2]),
+                    };
+                }
+                
+                return null;
+            };
+
+            const coords = extractLatLngFromMapsUrl(googleLocation);
+            if (coords) {
+                form.setValue('satDroneSection.location', coords);
+                console.log(`Updated location from Google Maps URL: lat=${coords.lat}, lng=${coords.lng}`);
+                showSuccess("Warehouse data loaded", "Location name and coordinates have been populated successfully");
+            } else {
+                showWarning("Invalid Google Maps URL", "Could not extract coordinates from the Google Maps URL");
+            }
+        } else if (warehouseData.WarehouseData) {
+            // Fallback: Use lat/lng from WarehouseData if Google Maps URL is not available
+            const { latitude, longitude } = warehouseData.WarehouseData;
+            
+            if (latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined) {
+                form.setValue('satDroneSection.location', { lat: latitude, lng: longitude });
+                console.log(`Updated location from coordinates: lat=${latitude}, lng=${longitude}`);
+                showSuccess("Warehouse data loaded", "Location name and coordinates have been populated successfully");
+            } else {
+                showWarning("Coordinates missing", "Warehouse data loaded but coordinates are missing");
+            }
+        } else {
+            showWarning("Location data unavailable", "Warehouse found but location data is not available");
+        }
+    };
+
+    // Handle warehouse fetch error callback
+    const handleWarehouseFetchError = (error: string) => {
+        console.error("Warehouse fetch error:", error);
+        showError("Failed to fetch warehouse", error);
+    };
+
     // Handle save project with media uploads
     const handleSaveProject = async () => {
         if (!id) {
@@ -965,6 +1035,11 @@ function EditorContent() {
                     <div className="max-w-3xl mx-auto">
                         <Form {...form}>
                             <form className="space-y-6">
+                                <WarehouseDataFetcher
+                                    onDataFetched={handleWarehouseDataFetched}
+                                    onError={handleWarehouseFetchError}
+                                    disabled={isSaving || isGeneratingAudio}
+                                />
                                 <SchemaFormGenerator
                                     schema={CompositionProps}
                                     form={form}
