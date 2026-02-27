@@ -11,3 +11,7 @@ node_modules
 .DS_Store
 api
 .kiro
+
+# Lint reports
+lint-*.txt
+lint-fixes.md
