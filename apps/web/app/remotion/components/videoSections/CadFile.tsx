@@ -89,7 +89,6 @@ export const CadFile: React.FC<z.infer<typeof CadFileSchema> & { startPaddingInS
     const { fps } = useVideoConfig();
     const annotations = props.annotations || [];
 
-    const startPaddingFrames = (props.startPaddingInSeconds || 0) * fps;
     const fadeFrames = Math.round(0.5 * fps); // 0.5 seconds fade
 
     // Calculate start and end frames for each layer with continuous 0.5s crossfade overlaps
@@ -107,7 +106,7 @@ export const CadFile: React.FC<z.infer<typeof CadFileSchema> & { startPaddingInS
     });
 
     return (
-        <div style={{ flex: 1, position: "relative" }}>
+        <AbsoluteFill>
             {/* Base CAD image (no section-level audio) */}
             <ImageDisplay
                 imageUrl={hasImage ? props.imageUrl : undefined}
@@ -135,6 +134,6 @@ export const CadFile: React.FC<z.infer<typeof CadFileSchema> & { startPaddingInS
                     </Sequence>
                 );
             })}
-        </div>
+        </AbsoluteFill>
     );
 };

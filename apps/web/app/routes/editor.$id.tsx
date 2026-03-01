@@ -20,7 +20,7 @@ import { PageErrorBoundary } from "~/components/PageErrorBoundary";
 import { LoadingOverlay } from "~/components/LoadingOverlay";
 import { WarehouseDataFetcher } from "~/components/WarehouseDataFetcher";
 import { getComposition, updateComposition, generateAudioFromText } from "~/lib/api";
-import { uploadBatch, UploadRequest } from "~/lib/upload";
+import { uploadBatch, UploadRequest, dataUrlToFile } from "~/lib/upload";
 import { useToast } from "~/lib/toast-context";
 import { calculateSectionDuration } from "~/lib/utils";
 import { useRendering } from "~/lib/use-rendering";
@@ -556,6 +556,56 @@ function EditorContent() {
         showError("Failed to fetch warehouse", error);
     };
 
+    /**
+     * Uploads any inline base64 drawingDataUrl values to R2 so they
+     * become regular HTTP URLs that Remotion Lambda can fetch.
+     * Mutates `formData` in place and returns the number of uploads.
+     */
+    const uploadAnnotationDrawings = async (
+        formData: WarehouseVideoProps,
+        compositionId: string,
+    ): Promise<number> => {
+        const annotations = formData.cadFileSection?.annotations;
+        if (!annotations || annotations.length === 0) return 0;
+
+        const uploadRequests: UploadRequest[] = [];
+        const indices: number[] = [];
+
+        annotations.forEach((layer, i) => {
+            if (layer.drawingDataUrl && layer.drawingDataUrl.startsWith('data:')) {
+                const file = dataUrlToFile(
+                    layer.drawingDataUrl,
+                    `annotation-layer-${i}-${Date.now()}.png`,
+                );
+                uploadRequests.push({
+                    file,
+                    compositionId,
+                    fieldPath: `cadFileSection.annotations.${i}.drawingDataUrl`,
+                    mediaType: 'image',
+                });
+                indices.push(i);
+            }
+        });
+
+        if (uploadRequests.length === 0) return 0;
+
+        const results = await uploadBatch(uploadRequests);
+        const failures = results.filter(r => !r.success);
+        if (failures.length > 0) {
+            throw new Error(
+                `Annotation upload failed: ${failures.map(f => f.error).join(', ')}`,
+            );
+        }
+
+        results.forEach((result, j) => {
+            if (result.success && result.publicUrl) {
+                annotations[indices[j]].drawingDataUrl = result.publicUrl;
+            }
+        });
+
+        return uploadRequests.length;
+    };
+
     // Handle save project with media uploads
     const handleSaveProject = async () => {
         if (!id) {
@@ -630,6 +680,12 @@ function EditorContent() {
 
                 // Clear pending uploads after successful upload
                 setPendingUploads(new Map());
+            }
+
+            // Upload annotation drawings (base64 → R2)
+            const annotationCount = await uploadAnnotationDrawings(formData, id);
+            if (annotationCount > 0) {
+                form.reset(formData);
             }
 
             // Update composition with merged data
@@ -707,6 +763,12 @@ function EditorContent() {
                 // Update form with real URLs so the render uses them
                 form.reset(formData);
                 setPendingUploads(new Map());
+            }
+
+            // Upload annotation drawings (base64 → R2)
+            const annotationCount = await uploadAnnotationDrawings(formData, id!);
+            if (annotationCount > 0) {
+                form.reset(formData);
             }
 
             // Save composition

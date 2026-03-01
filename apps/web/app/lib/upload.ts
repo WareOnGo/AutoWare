@@ -1,5 +1,17 @@
 import { getBatchPresignedUrls } from './api';
 
+/**
+ * Converts a base64 data URL to a File object
+ */
+export function dataUrlToFile(dataUrl: string, fileName: string): File {
+  const [header, base64] = dataUrl.split(',');
+  const mime = header.match(/:(.*?);/)?.[1] ?? 'image/png';
+  const bytes = atob(base64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new File([arr], fileName, { type: mime });
+}
+
 // File validation constants
 const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500MB in bytes
 
