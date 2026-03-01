@@ -9,6 +9,7 @@ interface GoogleMapsInputProps {
     onConfirm?: (googleMapsUrl: string) => Promise<void>;
     label?: string;
     compositionId?: string;
+    isProcessing?: boolean;
 }
 
 // Extract lat/lng from various Google Maps URL formats
@@ -54,7 +55,7 @@ function extractLatLngFromMapsUrl(url: string): { lat: number; lng: number } | n
     return null;
 }
 
-export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location", compositionId }: GoogleMapsInputProps) {
+export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location", compositionId, isProcessing = false }: GoogleMapsInputProps) {
     const [mapsUrl, setMapsUrl] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [hasChanged, setHasChanged] = useState(false);
@@ -62,8 +63,11 @@ export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location"
 
     // Generate Google Maps URL from lat/lng on component mount
     useEffect(() => {
-        if (value && value.lat && value.lng && !mapsUrl) {
+        if (value && value.lat && value.lng && value.lat !== 0 && value.lng !== 0 && !mapsUrl) {
             setMapsUrl(`https://www.google.com/maps/@${value.lat},${value.lng},15z`);
+        } else if (value && value.lat === 0 && value.lng === 0) {
+            // Clear the URL when coordinates are 0,0 (indicating no location data)
+            setMapsUrl("");
         }
     }, [value, mapsUrl]);
 
@@ -104,12 +108,13 @@ export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location"
                             value={mapsUrl}
                             onChange={(e) => handleUrlChange(e.target.value)}
                             className="flex-1"
+                            disabled={isProcessing || isConfirming}
                         />
                         {hasChanged && onConfirm && compositionId && mapsUrl && (
                             <Button
                                 type="button"
                                 onClick={handleConfirm}
-                                disabled={isConfirming}
+                                disabled={isConfirming || isProcessing}
                                 loading={isConfirming}
                                 variant="outline"
                             >
@@ -117,7 +122,12 @@ export function GoogleMapsInput({ value, onChange, onConfirm, label = "Location"
                             </Button>
                         )}
                     </div>
-                    {value && value.lat !== 0 && value.lng !== 0 && (
+                    {isProcessing && (
+                        <FormDescription className="text-xs text-blue-600">
+                            Processing Google Maps URL...
+                        </FormDescription>
+                    )}
+                    {!isProcessing && value && value.lat !== 0 && value.lng !== 0 && (
                         <FormDescription className="text-xs text-green-600">
                             ✓ Coordinates: {value.lat.toFixed(4)}, {value.lng.toFixed(4)}
                         </FormDescription>

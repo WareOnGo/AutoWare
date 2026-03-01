@@ -59,6 +59,7 @@ interface SchemaFormGeneratorProps<T extends FieldValues> {
     onSatelliteImageConfirm?: (googleMapsUrl: string) => Promise<void>;
     onGenerateSpeech?: (transcript: string, fieldPath: string) => Promise<void>;
     isGeneratingAudio?: boolean;
+    isProcessingMapUrl?: boolean;
     sectionOrder?: string[];
     onSectionOrderChange?: (newOrder: string[]) => void;
     onDraggingChange?: (isDragging: boolean) => void;
@@ -178,7 +179,8 @@ function renderField<T extends FieldValues>(
     onFileSelect?: (fieldPath: string, file: File | null) => void,
     compositionId?: string,
     onSatelliteImageConfirm?: (googleMapsUrl: string) => Promise<void>,
-    onGenerateSpeech?: (transcript: string, fieldPath: string) => Promise<void>
+    onGenerateSpeech?: (transcript: string, fieldPath: string) => Promise<void>,
+    isProcessingMapUrl?: boolean
 ): React.ReactNode {
     const fieldPath = basePath ? `${basePath}.${key}` : key;
     const label = toTitleCase(key);
@@ -265,6 +267,7 @@ function renderField<T extends FieldValues>(
                             label={label}
                             compositionId={compositionId}
                             onConfirm={onSatelliteImageConfirm}
+                            isProcessing={isProcessingMapUrl}
                         />
                     )}
                 />
@@ -276,7 +279,7 @@ function renderField<T extends FieldValues>(
                 <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">{label}</h3>
                 <div className="space-y-4">
                     {Object.entries(shape).map(([nestedKey, nestedType]) =>
-                        renderField(nestedKey, nestedType, form, fieldPath, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech)
+                        renderField(nestedKey, nestedType, form, fieldPath, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech, isProcessingMapUrl)
                     )}
                 </div>
             </div>
@@ -313,7 +316,7 @@ function renderField<T extends FieldValues>(
                                         </button>
                                     </div>
                                     {Object.entries(shape).map(([nestedKey, nestedType]) =>
-                                        renderField(nestedKey, nestedType, form, `${fieldPath}.${index}`, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech)
+                                        renderField(nestedKey, nestedType, form, `${fieldPath}.${index}`, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech, isProcessingMapUrl)
                                     )}
                                 </div>
                             );
@@ -598,6 +601,7 @@ export function SchemaFormGenerator<T extends FieldValues>({
     onSatelliteImageConfirm,
     onGenerateSpeech,
     isGeneratingAudio,
+    isProcessingMapUrl,
     sectionOrder,
     onSectionOrderChange,
     onDraggingChange,
@@ -675,7 +679,7 @@ export function SchemaFormGenerator<T extends FieldValues>({
                             }
                             return null;
                         }
-                        return renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech);
+                        return renderField(childKey, childType, form, key, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech, isProcessingMapUrl);
                     })}
 
                     {/* ── Annotation UI for CAD section ── */}
@@ -752,7 +756,7 @@ export function SchemaFormGenerator<T extends FieldValues>({
                         }
                         return (
                             <div key={key} className="p-6 bg-white rounded-lg shadow-sm border border-gray-200">
-                                {renderField(key, zodType, form, basePath, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech)}
+                                {renderField(key, zodType, form, basePath, onFileSelect, compositionId, onSatelliteImageConfirm, onGenerateSpeech, isProcessingMapUrl)}
                             </div>
                         );
                     })}

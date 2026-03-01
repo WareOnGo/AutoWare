@@ -155,6 +155,7 @@ function EditorContent() {
     const [pendingUploads, setPendingUploads] = useState<Map<string, File>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+    const [isProcessingMapUrl, setIsProcessingMapUrl] = useState(false);
     const [showRenderConfirm, setShowRenderConfirm] = useState(false);
     const playerRef = useRef<PlayerRef>(null);
     const wasPlayingRef = useRef(false);
@@ -449,16 +450,20 @@ function EditorContent() {
         }
 
         try {
+            setIsProcessingMapUrl(true);
             const { generateSatelliteImage } = await import("~/lib/api");
             const result = await generateSatelliteImage(id, googleMapsUrl);
 
-            // Update the form with the new satellite image URL
+            // Update the form with the new satellite image URL and coordinates
             form.setValue("satDroneSection.satelliteImageUrl", result.imageUrl);
+            form.setValue("satDroneSection.location", result.coordinates);
 
             showSuccess("Satellite image generated", "The satellite image has been generated and saved");
         } catch (error) {
             console.error("Failed to generate satellite image:", error);
             throw error;
+        } finally {
+            setIsProcessingMapUrl(false);
         }
     };
 
@@ -514,7 +519,7 @@ function EditorContent() {
     };
 
     // Handle warehouse data fetched callback
-    const handleWarehouseDataFetched = (warehouseData: any) => {
+    const handleWarehouseDataFetched = async (warehouseData: any) => {
         console.log("Warehouse data received:", warehouseData);
 
         // Populate location name with "City, State"
@@ -525,54 +530,23 @@ function EditorContent() {
             console.log(`Updated location name: ${locationName}`);
         }
 
-        // If Google Maps URL is available, use it to populate the location field
+        // If Google Maps URL is available, process it through the satellite image generation pipeline
         if (googleLocation && googleLocation.trim() !== '') {
-            // Extract lat/lng from Google Maps URL
-            const extractLatLngFromMapsUrl = (url: string): { lat: number; lng: number } | null => {
-                if (!url) return null;
-                
-                // Format 1: https://www.google.com/maps/@28.4744,77.5040,15z
-                const atFormat = url.match(/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-                if (atFormat) {
-                    return {
-                        lat: parseFloat(atFormat[1]),
-                        lng: parseFloat(atFormat[2]),
-                    };
-                }
-                
-                // Format 2: https://www.google.com/maps/place/.../@28.4744,77.5040
-                const placeFormat = url.match(/place\/[^\/]+\/@(-?\d+\.?\d*),(-?\d+\.?\d*)/);
-                if (placeFormat) {
-                    return {
-                        lat: parseFloat(placeFormat[1]),
-                        lng: parseFloat(placeFormat[2]),
-                    };
-                }
-                
-                return null;
-            };
-
-            const coords = extractLatLngFromMapsUrl(googleLocation);
-            if (coords) {
-                form.setValue('satDroneSection.location', coords);
-                console.log(`Updated location from Google Maps URL: lat=${coords.lat}, lng=${coords.lng}`);
+            try {
+                await handleSatelliteImageConfirm(googleLocation);
                 showSuccess("Warehouse data loaded", "Location name and coordinates have been populated successfully");
-            } else {
-                showWarning("Invalid Google Maps URL", "Could not extract coordinates from the Google Maps URL");
-            }
-        } else if (warehouseData.WarehouseData) {
-            // Fallback: Use lat/lng from WarehouseData if Google Maps URL is not available
-            const { latitude, longitude } = warehouseData.WarehouseData;
-            
-            if (latitude !== null && latitude !== undefined && longitude !== null && longitude !== undefined) {
-                form.setValue('satDroneSection.location', { lat: latitude, lng: longitude });
-                console.log(`Updated location from coordinates: lat=${latitude}, lng=${longitude}`);
-                showSuccess("Warehouse data loaded", "Location name and coordinates have been populated successfully");
-            } else {
-                showWarning("Coordinates missing", "Warehouse data loaded but coordinates are missing");
+            } catch (error) {
+                console.error("Failed to process Google Maps URL:", error);
+                showWarning("Partial data loaded", "Location name set, but failed to process Google Maps URL");
             }
         } else {
-            showWarning("Location data unavailable", "Warehouse found but location data is not available");
+            // No Google Maps URL - clear the location coordinates to make the form entry empty
+            form.setValue('satDroneSection.location', { lat: 0, lng: 0 });
+            if (city && state) {
+                showSuccess("Warehouse data loaded", `Location name set to: ${city}, ${state}. No Google Maps URL available.`);
+            } else {
+                showWarning("Location data incomplete", "City or state information is missing");
+            }
         }
     };
 
@@ -1048,6 +1022,7 @@ function EditorContent() {
                                     onSatelliteImageConfirm={handleSatelliteImageConfirm}
                                     onGenerateSpeech={handleGenerateSpeech}
                                     isGeneratingAudio={isGeneratingAudio}
+                                    isProcessingMapUrl={isProcessingMapUrl}
                                     sectionOrder={form.watch('sectionOrder') || [...SECTION_KEYS]}
                                     onSectionOrderChange={(newOrder) => form.setValue('sectionOrder', newOrder)}
                                     onDraggingChange={(isDragging) => {
