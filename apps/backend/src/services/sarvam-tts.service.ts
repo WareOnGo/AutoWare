@@ -62,8 +62,8 @@ export const generateAudioFromTextSarvam = async (
             fieldPath,
             voice = 'shubh', // Default to 'rohan' - valid Sarvam AI voice
             language = 'en-IN',
-            speed = 1.05, // Default to 1.1x speed for better pacing
-            sampleRate = 22050
+            speed = 1, // Default to 1.1x speed for better pacing
+            sampleRate = 48000
         } = request;
 
         // Call Sarvam AI Bulbul V3 API using official SDK
