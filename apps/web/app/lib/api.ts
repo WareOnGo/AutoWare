@@ -92,8 +92,10 @@ const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VIT
 const makeRequest = async <Res>(
   endpoint: string,
   body: unknown,
+  useBaseUrl: boolean = true,
 ): Promise<Res> => {
-  const result = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = useBaseUrl ? `${API_BASE_URL}${endpoint}` : endpoint;
+  const result = await fetch(url, {
     method: "post",
     body: JSON.stringify(body),
     headers: {
@@ -180,7 +182,7 @@ export const renderVideo = async ({
     inputProps,
   };
 
-  return makeRequest<RenderResponse>("/api/render", body);
+  return makeRequest<RenderResponse>("/render", body, false);
 };
 
 export const getProgress = async ({
@@ -195,7 +197,7 @@ export const getProgress = async ({
     bucketName,
   };
 
-  return makeRequest<ProgressResponse>(`/api/progress/${id}`, body);
+  return makeRequest<ProgressResponse>(`/progress/${id}`, body, false);
 };
 
 // Composition Management API Methods
