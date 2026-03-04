@@ -180,7 +180,7 @@ export const renderVideo = async ({
     inputProps,
   };
 
-  return makeRequest<RenderResponse>("/render", body);
+  return makeRequest<RenderResponse>("/api/render", body);
 };
 
 export const getProgress = async ({
@@ -195,7 +195,7 @@ export const getProgress = async ({
     bucketName,
   };
 
-  return makeRequest<ProgressResponse>(`/progress/${id}`, body);
+  return makeRequest<ProgressResponse>(`/api/progress/${id}`, body);
 };
 
 // Composition Management API Methods
