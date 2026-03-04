@@ -75,7 +75,7 @@ export const updateMediaUrls = async (id: string, urlMappings: Record<string, st
     return null;
   }
 
-  const updated = { ...existing.composition_components };
+  const updated = { ...(existing.composition_components as Record<string, any>) };
 
   // Apply URL mappings using field paths
   // e.g., { "satDroneSection.droneVideoUrl": "https://..." }
@@ -124,8 +124,8 @@ export const duplicateComposition = async (id: string) => {
 
   // Create a copy with a new ID and updated timestamps
   // Append " (Copy)" to the client name to indicate it's a duplicate
-  const compositionData = { ...existing.composition_components };
-  
+  const compositionData = { ...(existing.composition_components as Record<string, any>) };
+
   if (compositionData.intro?.clientName) {
     compositionData.intro.clientName = `${compositionData.intro.clientName} (Copy)`;
   }

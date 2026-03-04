@@ -1,0 +1,30 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# ── Install dependencies ─────────────────────────────────────────────
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/web/package.json apps/web/
+
+RUN npm ci --workspace=autoware-web --workspace=@repo/shared --include-workspace-root
+
+# ── Copy source ──────────────────────────────────────────────────────
+COPY packages/shared packages/shared
+COPY apps/web apps/web
+
+# ── Build ────────────────────────────────────────────────────────────
+ARG VITE_API_URL=""
+ENV VITE_API_URL=$VITE_API_URL
+
+RUN npm run build --workspace=autoware-web
+
+# ── Cleanup dev deps & source to save space ──────────────────────────
+RUN npm prune --omit=dev --workspace=autoware-web 2>/dev/null || true
+
+EXPOSE 3000
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+CMD ["npx", "react-router-serve", "apps/web/build/server/index.js"]

@@ -78,9 +78,8 @@ const defaultValues: WarehouseVideoProps = {
         imageUrl: "",
         specs: {
             clearHeight: "12 meters",
-            flooringType: "Anti-skid epoxy",
-            hasVentilation: true,
-            hasInsulation: true,
+            numberOfDocks: "4",
+            fireNocAvailable: true,
         },
         audio: {
             durationInSeconds: 5,
@@ -335,9 +334,8 @@ function EditorContent() {
                             imageUrl: "",
                             specs: oldInternal.specs || {
                                 clearHeight: "",
-                                flooringType: "",
-                                hasVentilation: false,
-                                hasInsulation: false,
+                                numberOfDocks: "",
+                                fireNocAvailable: false,
                             },
                             audio: {
                                 audioUrl: oldInternal.audio?.audioUrl || "",
@@ -530,20 +528,31 @@ function EditorContent() {
             console.log(`Updated location name: ${locationName}`);
         }
 
+        // Populate Internal Wide Shot specs from warehouse data
+        if (warehouseData.clearHeightFt !== null && warehouseData.clearHeightFt !== undefined) {
+            form.setValue('internalWideShotSection.specs.clearHeight', `${warehouseData.clearHeightFt} ft`);
+        }
+        if (warehouseData.numberOfDocks !== null && warehouseData.numberOfDocks !== undefined) {
+            form.setValue('internalWideShotSection.specs.numberOfDocks', String(warehouseData.numberOfDocks));
+        }
+        if (warehouseData.WarehouseData?.fireNocAvailable !== null && warehouseData.WarehouseData?.fireNocAvailable !== undefined) {
+            form.setValue('internalWideShotSection.specs.fireNocAvailable', warehouseData.WarehouseData.fireNocAvailable);
+        }
+
         // If Google Maps URL is available, process it through the satellite image generation pipeline
         if (googleLocation && googleLocation.trim() !== '') {
             try {
                 await handleSatelliteImageConfirm(googleLocation);
-                showSuccess("Warehouse data loaded", "Location name and coordinates have been populated successfully");
+                showSuccess("Warehouse data loaded", "Location name, specs, and coordinates have been populated successfully");
             } catch (error) {
                 console.error("Failed to process Google Maps URL:", error);
-                showWarning("Partial data loaded", "Location name set, but failed to process Google Maps URL");
+                showWarning("Partial data loaded", "Location name and specs set, but failed to process Google Maps URL");
             }
         } else {
             // No Google Maps URL - clear the location coordinates to make the form entry empty
             form.setValue('satDroneSection.location', { lat: 0, lng: 0 });
             if (city && state) {
-                showSuccess("Warehouse data loaded", `Location name set to: ${city}, ${state}. No Google Maps URL available.`);
+                showSuccess("Warehouse data loaded", `Location name and specs set. No Google Maps URL available.`);
             } else {
                 showWarning("Location data incomplete", "City or state information is missing");
             }
@@ -627,7 +636,8 @@ function EditorContent() {
             const formData = form.getValues();
 
             // If there are pending uploads, handle them first
-            if (pendingUploads.size > 0) {
+            const hadPendingUploads = pendingUploads.size > 0;
+            if (hadPendingUploads) {
                 showWarning("Uploading files", `Uploading ${pendingUploads.size} file(s)...`);
 
                 // Prepare upload requests
@@ -684,7 +694,9 @@ function EditorContent() {
 
             // Upload annotation drawings (base64 → R2)
             const annotationCount = await uploadAnnotationDrawings(formData, id);
-            if (annotationCount > 0) {
+
+            // Reset form state with real R2 URLs so blob URLs don't leak into renders
+            if (hadPendingUploads || annotationCount > 0) {
                 form.reset(formData);
             }
 

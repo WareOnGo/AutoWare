@@ -68,7 +68,7 @@ const LayerOverlay: React.FC<{ layer: AnnotationLayer; durationFrames: number; f
                         style={{
                             color: "white",
                             fontSize: 32,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "Verdana, sans-serif",
                             textAlign: "center",
                             fontWeight: "bold",
                             margin: 0,

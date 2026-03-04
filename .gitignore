@@ -1,17 +1,43 @@
+# Dependencies
 node_modules
 
+# Build outputs
 /.cache
 /build
 /public/build
-.env
 /out
-.nvmrc
 .react-router/
 
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
 .DS_Store
-api
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
 .kiro
 
 # Lint reports
 lint-*.txt
 lint-fixes.md
+
+# Prisma generated client (auto-generated)
+apps/backend/src/generated/prisma
+apps/backend/dist
+
+# Shared package compiled output
+packages/shared/dist
+packages/shared/tsconfig.tsbuildinfo
+
+# Docker
+*.log
+
+# Remotion
+out/

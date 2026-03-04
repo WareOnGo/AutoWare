@@ -120,10 +120,8 @@ const defaultWarehouseProps: WarehouseVideoProps = {
     imageUrl: "",
     specs: {
       clearHeight: "32 feet",
-      flooringType: "VDF (Vacuum Dewatered Flooring)",
-      hasVentilation: true,
-      hasInsulation: true,
-      rackingType: "Selective Pallet Racking",
+      numberOfDocks: "12",
+      fireNocAvailable: true,
     },
     audio: {
       audioUrl: "https://storage.example.com/audio/internal-wide-voiceover.mp3",

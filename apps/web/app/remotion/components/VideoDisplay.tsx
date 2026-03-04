@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Video, Audio, useVideoConfig, OffthreadVideo } from "remotion";
+import { AbsoluteFill, Audio, OffthreadVideo } from "remotion";
 
 interface VideoDisplayProps {
     videoUrl?: string;
@@ -17,8 +17,6 @@ export const VideoDisplay: React.FC<VideoDisplayProps> = ({
     placeholderText = "Video not added",
     startPaddingInSeconds = 0,
 }) => {
-    const { fps } = useVideoConfig();
-
     return (
         <AbsoluteFill style={{ backgroundColor: "black" }}>
             {/* 1. Video Layer */}
@@ -43,7 +41,7 @@ export const VideoDisplay: React.FC<VideoDisplayProps> = ({
                         backgroundColor: "#1a1a1a",
                     }}
                 >
-                    <h2 style={{ color: "white", fontFamily: "Inter, sans-serif" }}>
+                    <h2 style={{ color: "white", fontFamily: "Verdana, sans-serif" }}>
                         {placeholderText}
                     </h2>
                 </AbsoluteFill>
@@ -69,7 +67,7 @@ export const VideoDisplay: React.FC<VideoDisplayProps> = ({
                         style={{
                             color: "white",
                             fontSize: 32,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "Verdana, sans-serif",
                             textAlign: "center",
                             fontWeight: "bold",
                             margin: 0,

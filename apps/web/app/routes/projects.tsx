@@ -80,10 +80,8 @@ function ProjectsPageContent() {
           imageUrl: "",
           specs: {
             clearHeight: "",
-            flooringType: "",
-            hasVentilation: false,
-            hasInsulation: false,
-            rackingType: "",
+            numberOfDocks: "",
+            fireNocAvailable: false,
           },
           audio: {
             audioUrl: "",

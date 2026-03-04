@@ -94,10 +94,8 @@ export const InternalWideShotSchema = z.object({
   imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
   specs: z.object({
     clearHeight: z.string(),
-    flooringType: z.string(),
-    hasVentilation: z.boolean(),
-    hasInsulation: z.boolean(),
-    rackingType: z.string().optional(),
+    numberOfDocks: z.string(),
+    fireNocAvailable: z.boolean(),
   }),
   audio: AudioMetaSchema,
   sectionDurationInSeconds: z.number().positive().optional(),

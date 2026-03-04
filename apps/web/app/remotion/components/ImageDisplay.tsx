@@ -37,7 +37,7 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
                         backgroundColor: "#1a1a1a",
                     }}
                 >
-                    <h2 style={{ color: "white", fontFamily: "Inter, sans-serif" }}>
+                    <h2 style={{ color: "white", fontFamily: "Verdana, sans-serif" }}>
                         {placeholderText}
                     </h2>
                 </AbsoluteFill>
@@ -45,7 +45,7 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
 
             {/* 2. Audio Layer */}
             {audioUrl && (
-                <Audio 
+                <Audio
                     src={audioUrl}
                 />
             )}
@@ -63,7 +63,7 @@ export const ImageDisplay: React.FC<ImageDisplayProps> = ({
                         style={{
                             color: "white",
                             fontSize: 32,
-                            fontFamily: "Inter, sans-serif",
+                            fontFamily: "Verdana, sans-serif",
                             textAlign: "center",
                             fontWeight: "bold",
                             margin: 0,

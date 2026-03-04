@@ -33,7 +33,7 @@ export const LocationVid: React.FC<z.infer<typeof LocationHighlightSchema> & { s
               backgroundColor: "#1a1a1a",
             }}
           >
-            <h2 style={{ color: "white", fontFamily: "Inter, sans-serif" }}>
+            <h2 style={{ color: "white", fontFamily: "Verdana, sans-serif" }}>
               Location Section - No Media Added
             </h2>
           </AbsoluteFill>
@@ -57,7 +57,7 @@ export const LocationVid: React.FC<z.infer<typeof LocationHighlightSchema> & { s
               style={{
                 color: "white",
                 fontSize: 32,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "Verdana, sans-serif",
                 textAlign: "center",
                 fontWeight: "bold",
                 margin: 0,

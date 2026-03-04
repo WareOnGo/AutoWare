@@ -86,11 +86,14 @@ export interface WarehouseResponse {
   } | null;
 }
 
+// Base URL for backend API — set via VITE_API_URL env var in production
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || '';
+
 const makeRequest = async <Res>(
   endpoint: string,
   body: unknown,
 ): Promise<Res> => {
-  const result = await fetch(endpoint, {
+  const result = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: "post",
     body: JSON.stringify(body),
     headers: {
@@ -132,7 +135,7 @@ const fetchRequest = async <Res>(
   options?: RequestInit,
 ): Promise<Res> => {
   try {
-    const result = await fetch(endpoint, {
+    const result = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
       headers: {
         "content-type": "application/json",
@@ -340,9 +343,9 @@ export interface GenerateAudioResponse {
  */
 export const generateAudioFromText = async (
   compositionId: string,
-  transcripts: Array<{ 
-    text: string; 
-    fieldPath: string; 
+  transcripts: Array<{
+    text: string;
+    fieldPath: string;
     voice?: string;
     language?: string;
     speed?: number;
@@ -355,7 +358,7 @@ export const generateAudioFromText = async (
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const result = await fetch('/api/tts/generate-audio-sarvam', {
+    const result = await fetch(`${API_BASE_URL}/api/tts/generate-audio-sarvam`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

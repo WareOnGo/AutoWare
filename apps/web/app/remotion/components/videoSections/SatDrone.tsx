@@ -135,7 +135,7 @@ export const SatDrone: React.FC<satdroneModel> = ({
               style={{
                 color: "white",
                 fontSize: 32,
-                fontFamily: "Inter, sans-serif",
+                fontFamily: "Verdana, sans-serif",
                 textAlign: "center",
                 fontWeight: "bold",
                 margin: 0,
