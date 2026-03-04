@@ -22,9 +22,11 @@ RUN npm run build --workspace=autoware-web
 # ── Cleanup dev deps & source to save space ──────────────────────────
 RUN npm prune --omit=dev --workspace=autoware-web 2>/dev/null || true
 
+WORKDIR /app/apps/web
+
 EXPOSE 3000
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-CMD ["npx", "react-router-serve", "apps/web/build/server/index.js"]
+CMD ["npx", "react-router-serve", "build/server/index.js"]
