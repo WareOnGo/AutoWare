@@ -169,7 +169,7 @@ export const Main: React.FC<WarehouseVideoProps> = (props) => {
     : [...SECTION_KEYS]) as SectionKey[];
 
   const introDuration = 5 * fps;
-  const outroDuration = 5 * fps;
+  const outroDuration = 4 * fps;
 
   // Calculate duration for each section based on its audio
   const sectionCalcs = new Map<SectionKey, ReturnType<typeof calculateSectionDuration>>();

@@ -806,7 +806,7 @@ function EditorContent() {
         const fps = COMPOSITION_FPS;
         const TRANSITION_DURATION = 10; // Must match Main.tsx (0.33s overlap between sections)
         const introDuration = 5 * fps;
-        const outroDuration = 5 * fps;
+        const outroDuration = 4 * fps;
 
         // Collect non-zero section durations
         const sectionKeys: string[] = ['satDroneSection', 'locationSection', 'approachRoadSection',

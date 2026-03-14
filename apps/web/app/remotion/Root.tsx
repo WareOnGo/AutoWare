@@ -25,7 +25,7 @@ function calculateTotalDuration(props: WarehouseVideoProps): number {
   };
 
   const introDuration = 5 * fps;
-  const outroDuration = 5 * fps;
+  const outroDuration = 4 * fps;
 
   // Collect non-zero section durations
   const sectionDurations: number[] = [];
