@@ -58,3 +58,57 @@ export const getBatchPresignedUploadUrlsHandler = async (req: Request, res: Resp
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const proxyImageHandler = async (req: Request, res: Response) => {
+  try {
+    const { url } = req.query;
+
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ error: 'URL parameter is required' });
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL format' });
+    }
+
+    console.log('Proxying image:', url);
+
+    // Fetch the image
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      console.error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      return res.status(response.status).json({
+        error: `Failed to fetch image: ${response.statusText}`
+      });
+    }
+
+    // Get content type from the response
+    const contentType = response.headers.get('content-type') || 'application/octet-stream';
+
+    // Validate it's an image
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({ error: 'URL does not point to an image' });
+    }
+
+    // Set CORS headers to allow canvas access
+    res.set({
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+    });
+
+    // Stream the image data
+    const buffer = await response.arrayBuffer();
+    res.send(Buffer.from(buffer));
+
+  } catch (error) {
+    console.error('Error proxying image:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

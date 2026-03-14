@@ -4,8 +4,9 @@ import { X, Undo2, Redo2, Plus } from "lucide-react";
 import type { AnnotationLayer } from "@repo/shared";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
-type Tool = "pen" | "rect";
+type Tool = "polygon" | "rect";
 type RectDef = { x: number; y: number; w: number; h: number; color: string };
+type Point = { x: number; y: number };
 
 interface UndoState {
     canvasData: ImageData;
@@ -21,7 +22,9 @@ interface AnnotationCanvasProps {
 
 const MAX_HISTORY = 20;
 const RECT_OPACITY = 0.2;
-const PEN_OPACITY = 0.5;
+const POLYGON_STROKE_OPACITY = 1.0;
+const POLYGON_FILL_OPACITY = 0.5;
+const POLYGON_LINE_WIDTH = 3;
 
 // ─── Preset colours ──────────────────────────────────────────────────────────
 const PRESET_COLORS = [
@@ -40,7 +43,7 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     const overlayCanvasRef = useRef<HTMLCanvasElement>(null); // rect drawings
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const [tool, setTool] = useState<Tool>("pen");
+    const [tool, setTool] = useState<Tool>("polygon");
     const [color, setColor] = useState(PRESET_COLORS[0]);
 
     // Initialize with a default layer if none exist, so the user can draw immediately
@@ -56,9 +59,53 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         }];
     }, [existingLayers]);
 
+    // Keep track of active blob URLs for cleanup
+    const blobUrlsRef = useRef<Set<string>>(new Set());
+    
+    // Simple cache for fetched blob URLs
+    const blobCacheRef = useRef<Map<string, string>>(new Map());
+
+    // Helper to fetch an image as a Blob URL to avoid canvas tainting
+    const fetchAsBlobUrl = async (url: string): Promise<string> => {
+        if (!url || url.startsWith("data:") || url.startsWith("blob:")) return url;
+        
+        // Check cache first
+        if (blobCacheRef.current.has(url)) {
+            return blobCacheRef.current.get(url)!;
+        }
+        
+        try {
+            // Use backend proxy endpoint
+            const proxyUrl = `http://localhost:5000/api/r2/proxy-image?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            blobUrlsRef.current.add(blobUrl);
+            blobCacheRef.current.set(url, blobUrl);
+            return blobUrl;
+        } catch (e) {
+            console.warn("Failed to fetch image as blob, falling back to backend proxy URL:", e);
+            // Fallback to backend proxy URL instead of original URL
+            const fallbackUrl = `http://localhost:5000/api/r2/proxy-image?url=${encodeURIComponent(url)}`;
+            blobCacheRef.current.set(url, fallbackUrl);
+            return fallbackUrl;
+        }
+    };
+
+    // Cleanup blob URLs on unmount
+    useEffect(() => {
+        return () => {
+            blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+            blobUrlsRef.current.clear();
+            blobCacheRef.current.clear();
+        };
+    }, []);
+
     const [layers, setLayers] = useState<AnnotationLayer[]>(initialLayers);
     const [canvasReady, setCanvasReady] = useState(false);
     const [hasImage, setHasImage] = useState(false);
+    const [backgroundImageLoaded, setBackgroundImageLoaded] = useState(false);
     const [editingLayerId, setEditingLayerId] = useState<string | null>(initialLayers[0]?.id || null);
 
     // Refs for drawing (avoids stale closures)
@@ -74,6 +121,11 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     const rectStartRef = useRef<{ x: number; y: number } | null>(null);
     const rectsRef = useRef<RectDef[]>([]); // committed rects (drawn on overlay)
 
+    // Polygon tool state
+    const polygonPointsRef = useRef<Point[]>([]);
+    const polygonPreviewRef = useRef<Point | null>(null);
+    const polygonHintRef = useRef<HTMLDivElement>(null);
+
     // ─── Undo / Redo ─────────────────────────────────────────────────────────
     const undoStackRef = useRef<UndoState[]>([]);
     const redoStackRef = useRef<UndoState[]>([]);
@@ -85,10 +137,15 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         if (!canvas) return null;
         const ctx = canvas.getContext("2d");
         if (!ctx) return null;
-        return {
-            canvasData: ctx.getImageData(0, 0, canvas.width, canvas.height),
-            rects: [...rectsRef.current],
-        };
+        try {
+            return {
+                canvasData: ctx.getImageData(0, 0, canvas.width, canvas.height),
+                rects: [...rectsRef.current],
+            };
+        } catch (e) {
+            console.warn("Could not capture canvas state (likely tainted):", e);
+            return null;
+        }
     };
 
     const pushUndo = () => {
@@ -139,6 +196,61 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         setRedoCount(0);
     };
 
+    // ─── Finalize polygon ─────────────────────────────────────────────────
+    const finalizePolygon = () => {
+        const points = polygonPointsRef.current;
+        if (points.length < 2) {
+            // Not enough points – discard
+            polygonPointsRef.current = [];
+            polygonPreviewRef.current = null;
+            redrawOverlay();
+            return;
+        }
+
+        pushUndo();
+
+        // Draw the closed polygon onto the main canvas
+        const ctx = canvasRef.current?.getContext("2d");
+        if (ctx) {
+            // Fill
+            ctx.save();
+            ctx.globalAlpha = POLYGON_FILL_OPACITY;
+            ctx.fillStyle = colorRef.current;
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+
+            // Stroke
+            ctx.save();
+            ctx.globalAlpha = POLYGON_STROKE_OPACITY;
+            ctx.strokeStyle = colorRef.current;
+            ctx.lineWidth = POLYGON_LINE_WIDTH;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        polygonPointsRef.current = [];
+        polygonPreviewRef.current = null;
+        redrawOverlay();
+    };
+
+    // Keep a ref to finalizePolygon so the keydown listener always calls the latest version
+    const finalizePolygonRef = useRef(finalizePolygon);
+    finalizePolygonRef.current = finalizePolygon;
+
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -150,15 +262,26 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                 e.preventDefault();
                 redo();
             }
+            // ESC to finalize polygon
+            if (e.key === "Escape" && polygonPointsRef.current.length > 0) {
+                e.preventDefault();
+                finalizePolygonRef.current();
+            }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, []);
 
-    // ─── Redraw overlay with committed rects (grouped by color, no stacking) ─
+    // ─── Redraw overlay with committed rects + polygon preview ───────────
     const redrawOverlay = (previewRect?: RectDef) => {
         const overlay = overlayCanvasRef.current;
         if (!overlay) return;
+        
+        // Handle polygon hint visibility efficiently without React re-renders
+        if (polygonHintRef.current) {
+            polygonHintRef.current.style.opacity = polygonPointsRef.current.length > 0 ? "1" : "0";
+        }
+        
         const ctx = overlay.getContext("2d");
         if (!ctx) return;
         ctx.clearRect(0, 0, overlay.width, overlay.height);
@@ -176,8 +299,6 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
             ctx.save();
             ctx.globalAlpha = RECT_OPACITY;
             ctx.fillStyle = groupColor;
-
-            // Build a combined region for fill
             ctx.beginPath();
             for (const r of rects) {
                 const nx = r.w < 0 ? r.x + r.w : r.x;
@@ -187,6 +308,66 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                 ctx.rect(nx, ny, nw, nh);
             }
             ctx.fill("nonzero");
+            ctx.restore();
+        }
+
+        // ─── Draw in-progress polygon preview ─────────────────────────────
+        const points = polygonPointsRef.current;
+        if (points.length > 0) {
+            const preview = polygonPreviewRef.current;
+
+            // Semi-transparent fill preview (if 3+ points)
+            if (points.length >= 2) {
+                ctx.save();
+                ctx.globalAlpha = POLYGON_FILL_OPACITY * 0.5; // lighter fill during preview
+                ctx.fillStyle = colorRef.current;
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                if (preview) ctx.lineTo(preview.x, preview.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            // Draw committed edges
+            ctx.save();
+            ctx.globalAlpha = POLYGON_STROKE_OPACITY;
+            ctx.strokeStyle = colorRef.current;
+            ctx.lineWidth = POLYGON_LINE_WIDTH;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x, points[i].y);
+            }
+            // Preview line to cursor
+            if (preview) {
+                ctx.lineTo(preview.x, preview.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+
+            // Draw vertices as dots
+            ctx.save();
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = colorRef.current;
+            for (const p of points) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // White border on dots for visibility
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 1.5;
+            for (const p of points) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                ctx.stroke();
+            }
             ctx.restore();
         }
     };
@@ -208,12 +389,35 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
 
     useEffect(() => {
         const timer = requestAnimationFrame(() => fitToContainer(16 / 9));
+        
+        // Reset background image loaded state when URL changes
+        setBackgroundImageLoaded(false);
+        
         if (imageUrl && imageUrl.trim().length > 0) {
             const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => { imgRef.current = img; setHasImage(true); fitToContainer(img.naturalWidth / img.naturalHeight); };
-            img.onerror = () => setHasImage(false);
-            img.src = imageUrl;
+            img.crossOrigin = "anonymous"; // Enable CORS for canvas usage
+            img.onload = () => { 
+                imgRef.current = img; 
+                setHasImage(true); 
+                setBackgroundImageLoaded(true);
+                fitToContainer(img.naturalWidth / img.naturalHeight); 
+            };
+            img.onerror = (error) => {
+                console.error("Failed to load background image:", error);
+                setHasImage(false);
+                setBackgroundImageLoaded(false);
+            };
+            
+            // Use backend proxy URL for external images
+            if (imageUrl.startsWith("http")) {
+                img.src = `http://localhost:5000/api/r2/proxy-image?url=${encodeURIComponent(imageUrl)}`;
+            } else {
+                img.src = imageUrl;
+            }
+        } else {
+            // No image URL, consider background "loaded"
+            setBackgroundImageLoaded(true);
+            setHasImage(false);
         }
         return () => cancelAnimationFrame(timer);
     }, [imageUrl, fitToContainer]);
@@ -221,25 +425,43 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     useEffect(() => {
         const handleResize = () => fitToContainer(imgRef.current ? imgRef.current.naturalWidth / imgRef.current.naturalHeight : 16 / 9);
         window.addEventListener("resize", handleResize);
-
-        // Auto-load the first layer's canvas data on mount if it exists
-        if (initialLayers.length > 0) {
-            // Because loadLayerToCanvas accesses refs, wait for canvas to be ready
-            // actually we do it in a setTimeout to let the DOM paint the canvas
-            setTimeout(() => {
-                if (canvasRef.current && initialLayers[0].drawingDataUrl) {
-                    const ctx = canvasRef.current.getContext("2d");
-                    if (ctx) {
-                        const img = new Image();
-                        img.onload = () => ctx.drawImage(img, 0, 0, canvasRef.current!.width, canvasRef.current!.height);
-                        img.src = initialLayers[0].drawingDataUrl;
-                    }
-                }
-            }, 100);
-        }
-
         return () => window.removeEventListener("resize", handleResize);
-    }, [fitToContainer, initialLayers]);
+    }, [fitToContainer]);
+
+    // Separate effect for loading the first layer - this should run when canvas is ready AND background is loaded
+    useEffect(() => {
+        if (initialLayers.length > 0 && canvasReady && (!imageUrl || backgroundImageLoaded)) {
+            const loadFirstLayer = async () => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext("2d");
+                if (!ctx || !initialLayers[0].drawingDataUrl) return;
+                
+                try {
+                    console.log("Loading first layer:", initialLayers[0].drawingDataUrl);
+                    const url = initialLayers[0].drawingDataUrl;
+                    const fetchUrl = await fetchAsBlobUrl(url);
+                    
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    img.onload = () => {
+                        console.log("First layer image loaded, drawing to canvas");
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.onerror = (error) => {
+                        console.error("Failed to load first layer image:", error);
+                    };
+                    img.src = fetchUrl;
+                } catch (error) {
+                    console.error("Error loading first layer:", error);
+                }
+            };
+            
+            // Small delay to ensure DOM is ready
+            setTimeout(loadFirstLayer, 100);
+        }
+    }, [canvasReady, backgroundImageLoaded, imageUrl, initialLayers]);
 
     // ─── Mouse position ──────────────────────────────────────────────────────
     const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -252,37 +474,33 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     // ─── Drawing handlers ────────────────────────────────────────────────────
     const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
         const pos = getPos(e);
+
+        if (toolRef.current === "polygon") {
+            // Add a point to the polygon
+            polygonPointsRef.current.push(pos);
+            redrawOverlay();
+            return;
+        }
+
+        // Rect tool
         isDrawingRef.current = true;
         pushUndo();
-
-        if (toolRef.current === "pen") {
-            const ctx = canvasRef.current?.getContext("2d");
-            if (!ctx) return;
-            ctx.beginPath();
-            ctx.moveTo(pos.x, pos.y);
-            ctx.strokeStyle = colorRef.current;
-            ctx.globalAlpha = PEN_OPACITY;
-            ctx.lineWidth = 4;
-            ctx.lineCap = "round";
-            ctx.lineJoin = "round";
-        } else {
-            rectStartRef.current = pos;
-        }
+        rectStartRef.current = pos;
     };
 
     const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!isDrawingRef.current) return;
         const pos = getPos(e);
 
-        if (toolRef.current === "pen") {
-            const ctx = canvasRef.current?.getContext("2d");
-            if (!ctx) return;
-            ctx.globalAlpha = PEN_OPACITY;
-            ctx.strokeStyle = colorRef.current;
-            ctx.lineWidth = 4;
-            ctx.lineTo(pos.x, pos.y);
-            ctx.stroke();
-        } else if (toolRef.current === "rect" && rectStartRef.current) {
+        if (toolRef.current === "polygon" && polygonPointsRef.current.length > 0) {
+            // Update preview line
+            polygonPreviewRef.current = pos;
+            redrawOverlay();
+            return;
+        }
+
+        if (!isDrawingRef.current) return;
+
+        if (toolRef.current === "rect" && rectStartRef.current) {
             // Show live preview including all committed rects + the in-progress one
             const preview: RectDef = {
                 x: rectStartRef.current.x,
@@ -296,6 +514,8 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     };
 
     const handleMouseUp = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (toolRef.current === "polygon") return; // polygon uses click, not drag
+
         if (!isDrawingRef.current) return;
         isDrawingRef.current = false;
 
@@ -317,27 +537,44 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         }
     };
 
+    const handleDoubleClick = (_e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (toolRef.current === "polygon" && polygonPointsRef.current.length >= 2) {
+            // Remove the last duplicated point from the double-click's second mousedown
+            // (the double-click fires mousedown twice + dblclick)
+            finalizePolygon();
+        }
+    };
+
     // ─── Canvas helpers ──────────────────────────────────────────────────────
     const clearCanvas = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
         rectsRef.current = [];
+        polygonPointsRef.current = [];
+        polygonPreviewRef.current = null;
         redrawOverlay();
     };
 
     // Merge pen canvas + rect overlay into a single data URL
-    const getMergedDataUrl = () => {
+    const getMergedDataUrl = (fallbackUrl: string = "") => {
         const main = canvasRef.current;
         const overlay = overlayCanvasRef.current;
-        if (!main) return "";
+        if (!main) return fallbackUrl;
         const temp = document.createElement("canvas");
         temp.width = main.width;
         temp.height = main.height;
         const ctx = temp.getContext("2d")!;
-        ctx.drawImage(main, 0, 0);
-        if (overlay) ctx.drawImage(overlay, 0, 0);
-        return temp.toDataURL("image/png");
+        try {
+            ctx.drawImage(main, 0, 0);
+            if (overlay) ctx.drawImage(overlay, 0, 0);
+            return temp.toDataURL("image/png");
+        } catch (e) {
+            console.warn("Could not get merged data URL (likely tainted), returning original layer URL:", e);
+            // If the canvas is tainted (because of an S3 image), we can't extract new drawing data.
+            // Returning the original URL ensures we don't accidentally erase the layer.
+            return fallbackUrl;
+        }
     };
 
     const canvasHasContent = () => {
@@ -346,22 +583,28 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         if (!canvas) return false;
         const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (!ctx) return false;
-        const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        return pixels.some((_, i) => i % 4 === 3 && pixels[i] > 0);
+        try {
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            return pixels.some((_, i) => i % 4 === 3 && pixels[i] > 0);
+        } catch (e) {
+            console.warn("Could not check canvas content (likely tainted), assuming true:", e);
+            return true;
+        }
     };
 
     // ─── Auto-save current layer ─────────────────────────────────────────────
     const autoSaveCurrentLayer = () => {
         if (!editingLayerId) return;
         if (!canvasHasContent()) return;
-        const dataUrl = getMergedDataUrl();
+        const currentLayer = layers.find(l => l.id === editingLayerId);
+        const dataUrl = getMergedDataUrl(currentLayer?.drawingDataUrl || "");
         setLayers((prev) =>
             prev.map((l) => l.id === editingLayerId ? { ...l, drawingDataUrl: dataUrl, color: colorRef.current } : l)
         );
     };
 
     // ─── Load layer onto canvas ──────────────────────────────────────────────
-    const loadLayerToCanvas = (layer: AnnotationLayer) => {
+    const loadLayerToCanvas = async (layer: AnnotationLayer) => {
         autoSaveCurrentLayer();
         // Clear both canvases
         const main = canvasRef.current;
@@ -375,11 +618,16 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         if (!main || !layer.drawingDataUrl) return;
         const ctx = main.getContext("2d");
         if (!ctx) return;
+        
+        const url = layer.drawingDataUrl;
+        const fetchUrl = await fetchAsBlobUrl(url);
+        
         const img = new Image();
+        img.crossOrigin = "anonymous"; // Enable CORS for canvas usage
         // Note: loaded layers are flattened (pen+old rects merged).
         // Rect objects are lost after save—future rects drawn on top are still non-stacking.
         img.onload = () => ctx.drawImage(img, 0, 0, main.width, main.height);
-        img.src = layer.drawingDataUrl;
+        img.src = fetchUrl;
     };
 
     // ─── New Layer ───────────────────────────────────────────────────────────
@@ -424,7 +672,8 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
         let finalLayers = [...layers];
 
         if (editingLayerId && canvasHasContent()) {
-            const dataUrl = getMergedDataUrl();
+            const currentLayer = layers.find(l => l.id === editingLayerId);
+            const dataUrl = getMergedDataUrl(currentLayer?.drawingDataUrl || "");
             finalLayers = finalLayers.map((l) =>
                 l.id === editingLayerId
                     ? { ...l, drawingDataUrl: dataUrl, color: colorRef.current }
@@ -461,15 +710,16 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                         <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-100 bg-white flex-wrap">
                             {/* Tools */}
                             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                                <button type="button" onClick={() => setTool("pen")}
-                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${tool === "pen" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
-                                    ✏️ Pen
+                                <button type="button" onClick={() => { setTool("polygon"); if (polygonPointsRef.current.length > 0) finalizePolygon(); }}
+                                    className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${tool === "polygon" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+                                    ⬠ Polygon
                                 </button>
-                                <button type="button" onClick={() => setTool("rect")}
+                                <button type="button" onClick={() => { if (polygonPointsRef.current.length > 0) finalizePolygon(); setTool("rect"); }}
                                     className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${tool === "rect" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
                                     ▭ Rect
                                 </button>
                             </div>
+                            
 
                             <div className="w-px h-6 bg-gray-300" />
 
@@ -515,7 +765,17 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                             {canvasReady && canvasSize.width > 0 && (
                                 <div className="relative" style={{ width: canvasSize.width, height: canvasSize.height }}>
                                     {hasImage ? (
-                                        <img src={imageUrl} alt="CAD base" className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none rounded" draggable={false} />
+                                        <img 
+                                            src={imageUrl.startsWith("http") ? `http://localhost:5000/api/r2/proxy-image?url=${encodeURIComponent(imageUrl)}` : imageUrl} 
+                                            alt="CAD base" 
+                                            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none rounded" 
+                                            draggable={false}
+                                            crossOrigin="anonymous"
+                                            onError={(e) => {
+                                                console.error("Background image failed to load in render:", e);
+                                                setHasImage(false);
+                                            }}
+                                        />
                                     ) : (
                                         <div className="absolute inset-0 bg-white rounded" />
                                     )}
@@ -523,10 +783,18 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
                                     <canvas ref={canvasRef} width={canvasSize.width} height={canvasSize.height}
                                         className="absolute inset-0 rounded" style={{ cursor: "crosshair" }}
                                         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove}
-                                        onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} />
+                                        onMouseUp={handleMouseUp} onMouseLeave={(e) => { if (toolRef.current !== "polygon") handleMouseUp(e); }}
+                                        onDoubleClick={handleDoubleClick} />
                                     {/* Overlay canvas (rects — non-stacking) */}
                                     <canvas ref={overlayCanvasRef} width={canvasSize.width} height={canvasSize.height}
                                         className="absolute inset-0 pointer-events-none rounded" />
+                                        
+                                    {/* Active drawing hint */}
+                                    {tool === "polygon" && (
+                                        <div ref={polygonHintRef} className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-gray-900/90 backdrop-blur text-white text-sm font-medium rounded-full shadow-xl pointer-events-none transition-opacity duration-300 opacity-0 z-10 flex items-center justify-center">
+                                            Press <kbd className="font-mono text-xs bg-gray-800 border border-gray-600 rounded px-1.5 py-0.5 mx-1 shadow-sm text-gray-100">ESC</kbd> to finish shape
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

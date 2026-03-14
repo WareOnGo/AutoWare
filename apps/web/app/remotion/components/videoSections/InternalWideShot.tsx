@@ -35,20 +35,19 @@ const SpecCard: React.FC<{ label: string; value: string | boolean; index: number
   return (
     <div
       style={{
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
+        background: '#ffffff',
+        border: '1px solid rgba(0, 0, 0, 0.1)',
         borderRadius: '12px',
         padding: '20px',
         minWidth: '200px',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
+        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.15)',
         transform: `translateY(${translateY}px)`,
         opacity,
       }}
     >
       <div style={{
         fontSize: '14px',
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'rgba(0, 0, 0, 0.6)',
         marginBottom: '8px',
         fontWeight: '500',
       }}>
@@ -56,7 +55,7 @@ const SpecCard: React.FC<{ label: string; value: string | boolean; index: number
       </div>
       <div style={{
         fontSize: '20px',
-        color: '#ffffff',
+        color: '#000000',
         fontWeight: '600',
       }}>
         {displayValue}

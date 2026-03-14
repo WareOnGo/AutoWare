@@ -130,7 +130,6 @@ export const InternalUtilitiesSchema = z.object({
 export const ExternalDockingSchema = z.object({
   dockPanVideoUrl: MediaUrl.optional(),
   imageUrl: MediaUrl.optional(), // Alternative to video - displays for 3 seconds by default
-  dockCount: z.number().int().optional(),
 
   // ✅ Audio for this section
   audio: AudioMetaSchema,

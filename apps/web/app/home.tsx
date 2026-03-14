@@ -65,7 +65,6 @@ export default function Index() {
       },
       dockingSection: {
         dockPanVideoUrl: "https://storage.example.com/dock-pan.mp4",
-        dockCount: 12,
         audio: {
           audioUrl: "https://storage.example.com/audio/docking-voiceover.mp3",
           durationInSeconds: 10,

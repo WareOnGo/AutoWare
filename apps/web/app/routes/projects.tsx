@@ -111,7 +111,6 @@ function ProjectsPageContent() {
         dockingSection: {
           dockPanVideoUrl: "",
           imageUrl: "",
-          dockCount: 0,
           audio: {
             audioUrl: "",
             durationInSeconds: 5,

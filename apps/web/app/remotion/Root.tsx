@@ -155,7 +155,6 @@ const defaultWarehouseProps: WarehouseVideoProps = {
   dockingSection: {
     dockPanVideoUrl: "https://storage.example.com/dock-pan.mp4",
     imageUrl: "",
-    dockCount: 12,
     audio: {
       audioUrl: "https://storage.example.com/audio/docking-voiceover.mp3",
       durationInSeconds: 10,
