@@ -319,10 +319,10 @@ export const generateSatelliteImage = async (
   } = {}
 ): Promise<{ imageUrl: string; key: string; coordinates: Coordinates }> => {
   const {
-    zoom = 16,
+    zoom = 14,
     width = 1280,
     height = 720,
-    style = 'satellite-streets-v12', // satellite with labels
+    style = 'streets-v12', // street view with labels
   } = options;
 
   const accessToken = process.env.MAPBOX_ACCESS_TOKEN;

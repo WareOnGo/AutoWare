@@ -58,7 +58,7 @@ export const LocationHighlightSchema = z.object({
   nearbyPoints: z.array(
     z.object({
       name: z.string(),
-      type: z.enum(["road", "airport", "railway", "port", "hospital", "other"]),
+      type: z.enum(["road", "airport", "railway", "port", "hospital", "bus", "other"]),
       distanceKm: z.number(),
     })
   ).max(4),
