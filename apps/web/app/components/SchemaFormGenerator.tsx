@@ -26,6 +26,7 @@ import {
 import { VideoUpload } from "./VideoUpload";
 import { ImageUpload } from "./ImageUpload";
 import { MediaUpload } from "./MediaUpload";
+import { PdfUpload } from "./PdfUpload";
 import { GoogleMapsInput } from "./GoogleMapsInput";
 import { TranscriptInput } from "./TranscriptInput";
 import { AnnotationCanvas } from "./AnnotationCanvas";
@@ -548,6 +549,9 @@ function renderField<T extends FieldValues>(
 
         // Use ImageUpload for any field containing "image" in the name
         if (key.toLowerCase().includes("image")) {
+            // Check if this is the CAD section's imageUrl - use PdfUpload
+            const isCadSectionImage = basePath === "cadFileSection" && key === "imageUrl";
+            
             return (
                 <FormField
                     key={fieldPath}
@@ -557,12 +561,21 @@ function renderField<T extends FieldValues>(
                         <FormItem>
                             <FormLabel className="text-base font-medium">{label}</FormLabel>
                             <FormControl>
-                                <ImageUpload
-                                    value={field.value}
-                                    onChange={field.onChange}
-                                    onFileSelect={(file) => onFileSelect?.(fieldPath, file)}
-                                    label={`Upload ${label}`}
-                                />
+                                {isCadSectionImage ? (
+                                    <PdfUpload
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        onFileSelect={(file) => onFileSelect?.(fieldPath, file)}
+                                        label="Upload PDF or Image"
+                                    />
+                                ) : (
+                                    <ImageUpload
+                                        value={field.value}
+                                        onChange={field.onChange}
+                                        onFileSelect={(file) => onFileSelect?.(fieldPath, file)}
+                                        label={`Upload ${label}`}
+                                    />
+                                )}
                             </FormControl>
                             <FormMessage />
                         </FormItem>
